@@ -186,6 +186,28 @@ func TestDestAssignments_duplicateRejected(t *testing.T) {
 	}
 }
 
+func TestParseArgs_listen(t *testing.T) {
+	opts, err := parseArgs([]string{"-l", "5432"})
+	if err != nil {
+		t.Fatalf("parseArgs(-l 5432): %v", err)
+	}
+	if opts.listen != "5432" {
+		t.Errorf("listen = %q, want %q", opts.listen, "5432")
+	}
+}
+
+func TestParseArgs_listen_invalidFormatIsRejected(t *testing.T) {
+	if _, err := parseArgs([]string{"-l", "not-an-address"}); err == nil {
+		t.Error("parseArgs(-l not-an-address) = nil, want error")
+	}
+}
+
+func TestParseArgs_listen_repeatedIsRejected(t *testing.T) {
+	if _, err := parseArgs([]string{"-l", "5432", "--listen", "5433"}); err == nil {
+		t.Error("parseArgs with -l specified twice = nil, want error (only one listener is allowed, spec §4.1)")
+	}
+}
+
 func TestParseArgs_helpAndVersionSkipValidation(t *testing.T) {
 	opts, err := parseArgs([]string{"-h"})
 	if err != nil {

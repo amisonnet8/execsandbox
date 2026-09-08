@@ -2,10 +2,11 @@ package main
 
 // 起動時CLIオプションのパース(仕様書§7)。
 //
-// フェーズ②Step5時点では、ここで組み立てるoptionsの値のうち実際に配線されて
-// いるのは-n/-d/-b/-f/-q/-e/-s/-v/-mのみ。-t/-xはパース・検証だけを行い、
-// wazeroへの適用(ModuleConfig/RuntimeConfig)はフェーズ②の以降のステップ
-// (乱数・時刻、タイムアウト)で行う。
+// フェーズ②で仕様書§7.1の全オプションのパース・検証・wazeroへの配線が完了した。
+// フェーズ③Step2時点では-l/--listenを追加した。書式(仕様書§7.4)の検証は
+// sandbox.ParseListenAddressで行い、2回以上の指定はエラーにする(§4.1
+// 「1インスタンスにつき1つのみ」)。待ち受けの開始自体はフェーズ③Step3で
+// main.goに配線する。
 
 import (
 	"flag"
@@ -16,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/amisonnet8/execsandbox/sandbox"
 )
 
 // 仕様書§7.1の既定値。
@@ -54,6 +57,7 @@ type options struct {
 	stdio        stdioSet
 	timeout      time.Duration // 0はタイムアウトなし(既定)
 	deny         denySet
+	listen       string // 空文字列は待ち受けなし(既定)
 	quiet        bool
 	help         bool
 	version      bool
@@ -101,6 +105,10 @@ func parseArgs(args []string) (*options, error) {
 
 	fs.Var(&opts.stdio, "s", "streams to connect to the shell: in,out,err,all")
 	fs.Var(&opts.stdio, "stdio", "streams to connect to the shell: in,out,err,all")
+
+	var listenSeen bool
+	fs.Var(listenValue{&opts.listen, &listenSeen}, "l", "external connection listen address (only one allowed)")
+	fs.Var(listenValue{&opts.listen, &listenSeen}, "listen", "external connection listen address (only one allowed)")
 
 	fs.Var((*durationValue)(&opts.timeout), "t", "execution time limit (e.g. 30s, 5m)")
 	fs.Var((*durationValue)(&opts.timeout), "timeout", "execution time limit (e.g. 30s, 5m)")
@@ -341,6 +349,28 @@ func (d *denySet) Set(value string) error {
 			return fmt.Errorf("invalid -x/--deny value %q, want a comma-separated list of random,time", v)
 		}
 	}
+	return nil
+}
+
+// --- -l, --listen: 外部接続の待ち受けアドレス(仕様書§7.4、1インスタンス
+// につき1つのみ) ---
+
+type listenValue struct {
+	target *string
+	seen   *bool
+}
+
+func (l listenValue) String() string { return "" }
+
+func (l listenValue) Set(s string) error {
+	if *l.seen {
+		return fmt.Errorf("invalid -l/--listen: specified more than once, only one listener is allowed")
+	}
+	if _, _, err := sandbox.ParseListenAddress(s); err != nil {
+		return err
+	}
+	*l.target = s
+	*l.seen = true
 	return nil
 }
 

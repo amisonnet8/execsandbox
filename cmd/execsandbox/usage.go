@@ -21,6 +21,8 @@ Options:
   -m, --mem-limit SIZE            WASM linear memory limit (default: 512M)
   -b, --mailbox-limit N           mailbox capacity in messages (default: 1024)
   -f, --max-frame SIZE            maximum message size (default: 1M)
+  -l, --listen ADDR               external connection listen address
+                                  (default: none, does not listen)
   -s, --stdio LIST                streams to connect to the shell:
                                   in,out,err,all (default: none, all blocked)
   -t, --timeout DURATION          execution time limit, e.g. 30s, 5m
