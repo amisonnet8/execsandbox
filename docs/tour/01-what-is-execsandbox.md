@@ -1,24 +1,27 @@
-# 1. ExecSandboxとは
+日本語版: [01-what-is-execsandbox_ja.md](01-what-is-execsandbox_ja.md)
 
-ExecSandboxは、WASM実行ランタイムとWASMモジュールを1つの実行ファイルに
-封じ込める、環境構築不要のポータブルなサンドボックス実行ツールである。3つの
-考え方でできている。
+# 1. What Is ExecSandbox?
 
-- **単一バイナリ化** — 実行に必要なもの（ランタイム本体＋あなたのWASM
-  モジュール）が1つの実行ファイルに収まる。相手のマシンにWASMランタイムを
-  入れてもらう必要はない。
-- **ケイパビリティベースのポリシー** — 起動時に明示的に許可しない限り、
-  ファイルもネットワークも環境変数も何も見えない。
-- **メールボックス方式のメッセージング** — 複数のExecSandboxインスタンスを
-  Erlang風のメールボックスでつなぎ合わせて、1つのシステムを組み立てる。
+ExecSandbox is a portable, zero-setup sandboxed execution tool that bundles
+a WASM runtime and a WASM module into a single executable file. It's built
+on three ideas.
 
-このツアーでは、実際に手を動かしながらこの3つを順番に体験する。各章は
-短く、前の章を踏まえて次に進む構成になっている。途中で立ち止まってよいし、
-気になった章だけ読み返してもよい。
+- **Single-binary packaging** — everything needed to run (the runtime
+  itself plus your WASM module) fits into one executable file. You never
+  need anyone else to install a WASM runtime on their machine.
+- **Capability-based policy** — unless you explicitly allow it at launch,
+  the guest sees no files, no network, no environment variables — nothing.
+- **Mailbox-style messaging** — multiple ExecSandbox instances are wired
+  together through an Erlang-style mailbox to build a single system.
 
-**前提**: ゲストモジュールを自分でビルドする章では[TinyGo](https://tinygo.org/)
-（一部の章では[Rust](https://www.rust-lang.org/)も）を使う。`execsandbox-build`
-（ビルダー）の入手方法は次の章で扱う。
+This tour walks you through all three, hands-on, one at a time. Each
+chapter is short and builds on the one before it. Feel free to pause along
+the way, or revisit only the chapters you care about.
+
+**Prerequisite**: chapters where you build a guest module yourself use
+[TinyGo](https://tinygo.org/) (and, in a couple of chapters,
+[Rust](https://www.rust-lang.org/) too). How to get `execsandbox-build`
+(the builder) is covered in the next chapter.
 
 ---
-[目次](README.md) | [次: 2. インストールと最初の実行 →](02-install-and-first-run.md)
+[Index](README.md) | [Next: 2. Installing and Your First Run →](02-install-and-first-run.md)

@@ -1,22 +1,27 @@
-# 16. 次に読むもの
+日本語版: [16-where-to-go-next_ja.md](16-where-to-go-next_ja.md)
 
-ツアーはここで終わり。ここまでで、ExecSandboxの3つの柱——単一バイナリ化・
-ケイパビリティベースのポリシー・メールボックス方式のメッセージング——を
-一通り手で触った。ここから先は、目的に応じて次のドキュメントへ進む。
+# 16. Where to Go Next
 
-- **[`docs/usage/`](../usage/)** — 全オプションの一覧・書式のリファレンス。
-  「あのオプションの書式は何だったか」を引くための索引。通読は前提にしていない。
-- **[`docs/examples/`](../examples/)** — このツアーで分割して見せた
-  シナリオの、独立した完全版。1本ずつ自己完結しているので、必要な例だけを
-  読める。
-- **[`docs/spec/execsandbox_spec_ja.md`](../spec/execsandbox_spec_ja.md)**
-  — 仕様書。各仕様を選んだ判断理由と、検討して退けた案まで書かれている。
-  「なぜこういう挙動なのか」を深く知りたくなったらここへ。
-- **[`execsandbox-sdk`](https://github.com/amisonnet8/execsandbox-sdk)**
-  — TinyGo版・Rust版SDKの実体。API仕様の詳細は各パッケージのREADME・
-  ドキュメントコメントを参照。
+That's the end of the tour. By now you've touched, hands-on, all three of
+ExecSandbox's pillars — single-binary packaging, capability-based policy,
+and mailbox-style messaging. From here, head to whichever document fits
+your purpose.
 
-お疲れさまでした。
+- **[`docs/usage/`](../usage/)** — a reference listing every option and its
+  syntax. An index for looking up "what was the syntax for that option
+  again," not something meant to be read cover to cover.
+- **[`docs/examples/`](../examples/)** — self-contained, complete versions
+  of the scenarios this tour split apart. Each one stands on its own, so
+  you can read just the one you need.
+- **[`docs/spec/execsandbox_spec.md`](../spec/execsandbox_spec.md)** — the
+  specification. It records the rationale behind every choice, down to the
+  alternatives that were considered and rejected. Come here once you want
+  to dig into "why does it behave this way."
+- **[`execsandbox-sdk`](https://github.com/amisonnet8/execsandbox-sdk)** —
+  the TinyGo and Rust SDKs themselves. For API details, see each package's
+  README and doc comments.
+
+Thanks for taking the tour.
 
 ---
-[← 前: 15. 複数の言語で書く](15-writing-in-another-language.md) | [目次](README.md)
+[← Previous: 15. Writing in Another Language](15-writing-in-another-language.md) | [Index](README.md)

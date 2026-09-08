@@ -1,7 +1,9 @@
-# 4. 出力を見る
+日本語版: [04-seeing-output_ja.md](04-seeing-output_ja.md)
 
-前の章の`hello-wasi`に`-s out`（`--stdio out`）を付けて、標準出力を
-ホスト側へ繋いでみる。
+# 4. Seeing Output
+
+Let's add `-s out` (`--stdio out`) to the previous chapter's `hello-wasi`
+and connect standard output to the host side.
 
 ```
 $ ./hello-wasi -s out
@@ -10,19 +12,21 @@ args: [execsandbox]
 GREETING=
 ```
 
-同じゲスト、同じコードなのに、`-s out`を付けただけで出力が現れた。
-`-s`はゲストのどのストリームを外部に繋ぐかを選ぶオプションで、
-`in`/`out`/`err`/`all`をカンマ区切りで指定できる（既定はすべて遮断）。
+Same guest, same code, and yet just adding `-s out` made the output appear.
+`-s` is the option that chooses which of the guest's streams get connected
+to the outside — `in`/`out`/`err`/`all`, comma-separated (everything is
+blocked by default).
 
-`args`が`[execsandbox]`だけで、`GREETING=`が空なのはまだ引数・環境変数を
-渡していないため。次の章で渡す。
+`args` shows only `[execsandbox]`, and `GREETING=` is empty, because we
+haven't passed any arguments or environment variables yet. That comes in
+the next chapter.
 
-## 豆知識: ホストのログとゲストの出力は別物
+## A small note: the host's logs and the guest's output are two different things
 
-ExecSandbox自身も診断ログを出すことがあるが、それは`execsandbox:`という
-接頭辞付きで標準エラー出力に書かれる。`-s out`で見えているのは、あくまで
-**ゲストが自分で書いた**標準出力である。この2つを混同しないことが、
-ログを読むときのコツになる。
+ExecSandbox itself sometimes emits diagnostic logs too, but those are
+written to standard error, prefixed with `execsandbox:`. What `-s out`
+makes visible is strictly the standard output **the guest itself wrote**.
+Keeping these two apart is the trick to reading the logs correctly.
 
 ---
-[← 前: 3. 既定では何もできない](03-nothing-by-default.md) | [目次](README.md) | [次: 5. 引数と環境変数 →](05-args-and-env.md)
+[← Previous: 3. Nothing by Default](03-nothing-by-default.md) | [Index](README.md) | [Next: 5. Arguments and Environment Variables →](05-args-and-env.md)

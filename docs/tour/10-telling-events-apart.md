@@ -1,29 +1,35 @@
-# 10. イベントの種類を見分ける
+日本語版: [10-telling-events-apart_ja.md](10-telling-events-apart_ja.md)
 
-前章のechoが`msg.Kind == execsandbox.KindConnData`だけを見ていたことに
-気づいただろうか。`Recv`は1つの受け口に、複数の種類のイベントを合流させて
-届ける。ここまでに登場したものを整理する。
+# 10. Telling Events Apart
 
-| `Kind` | 意味 | `ConnID` | `Data` |
+Did you notice that the previous chapter's echo only ever checked
+`msg.Kind == execsandbox.KindConnData`? `Recv` delivers several kinds of
+events through a single receiving point. Let's lay out what we've seen so
+far.
+
+| `Kind` | Meaning | `ConnID` | `Data` |
 | :--- | :--- | :--- | :--- |
-| `KindMessage` | サンドボックス間メッセージ（7章） | — | あり |
-| `KindConnEstablished` | 外部接続が確立した | 有効 | なし |
-| `KindConnData` | 外部接続からデータが届いた（9章） | 有効 | あり |
-| `KindConnClosed` | 外部接続が閉じた | 有効 | なし |
+| `KindMessage` | Sandbox-to-sandbox message (chapter 7) | — | present |
+| `KindConnEstablished` | An external connection was established | valid | none |
+| `KindConnData` | Data arrived on an external connection (chapter 9) | valid | present |
+| `KindConnClosed` | An external connection closed | valid | none |
 
-前章のechoは接続の確立・切断（`KindConnEstablished`/`KindConnClosed`）を
-受け取っても無視する。これはエラーではなく推奨される作法である——**知らない
-/使わない`kind`はエラーにせず、無視してループを継続する。** 将来ExecSandbox
-が新しい`kind`を追加しても、この作法を守っているゲストは壊れない。
+The previous chapter's echo ignores connection establishment and closure
+(`KindConnEstablished`/`KindConnClosed`) even when it receives them. This
+isn't an error — it's the recommended practice: **don't treat an unknown
+or unused `kind` as an error; ignore it and keep the loop going.** A guest
+that follows this practice won't break even when ExecSandbox adds a new
+`kind` in the future.
 
-`msg.ConnID`は接続を特定する。複数のクライアントが同時に接続してきても、
-`ConnID`ごとに区別できる（前章のechoが受け取ったconnIDへそのまま書き戻す
-だけで、複数接続を同時に処理できていたのはこのため）。
+`msg.ConnID` identifies the connection. Even with multiple clients
+connected at once, they can be told apart by `ConnID` (this is exactly why
+the previous chapter's echo could handle multiple connections
+concurrently just by writing back to whichever connID it received on).
 
-`-l`は1つのアドレスしか受け付けない点にも触れておく。複数の待ち受けが
-必要なら、ExecSandboxインスタンスを複数起動し、7章のサンドボックス間
-メッセージングでつなぐ。また、接続元のアドレスを取得する手段は用意されて
-いない。
+Worth mentioning too: `-l` accepts only one address. If you need multiple
+listeners, start multiple ExecSandbox instances and connect them with the
+sandbox-to-sandbox messaging from chapter 7. There's also no way to obtain
+the source address of a connection.
 
 ---
-[← 前: 9. 外部から接続を受ける](09-accepting-external-connections.md) | [目次](README.md) | [次: 11. 暴走を止める →](11-stopping-a-runaway-guest.md)
+[← Previous: 9. Accepting External Connections](09-accepting-external-connections.md) | [Index](README.md) | [Next: 11. Stopping a Runaway Guest →](11-stopping-a-runaway-guest.md)

@@ -1,7 +1,9 @@
-# 5. 引数と環境変数
+日本語版: [05-args-and-env_ja.md](05-args-and-env_ja.md)
 
-`hello-wasi`は自分の引数（`os.Args`）と環境変数`GREETING`も表示する。これを
-`--`と`-e`で渡してみる。
+# 5. Arguments and Environment Variables
+
+`hello-wasi` also prints its own arguments (`os.Args`) and the environment
+variable `GREETING`. Let's pass those in with `--` and `-e`.
 
 ```
 $ ./hello-wasi -s out -e GREETING=konnichiwa -- foo bar
@@ -10,21 +12,24 @@ args: [execsandbox foo bar]
 GREETING=konnichiwa
 ```
 
-- **`--`以降**がゲストの引数になる。`foo`と`bar`が`os.Args[1:]`にそのまま
-  渡っている。ただし`os.Args[0]`はゲスト自身のファイル名ではなく、固定
-  文字列`"execsandbox"`になる——埋め込まれたWASMモジュールに、そもそも
-  「ファイル名」という概念がないため。
-- **`-e KEY=VALUE`**（繰り返し指定可）が、指定した環境変数だけをゲストに
-  見せる。ホスト側のシェルの環境変数がそのまま引き継がれることはない。
-  `-e`を付けなければ`GREETING`は空のままだった（前章参照）。
+- **Everything after `--`** becomes the guest's arguments. `foo` and `bar`
+  are passed straight through into `os.Args[1:]`. `os.Args[0]`, though,
+  isn't the guest's own file name — it's the fixed string `"execsandbox"`,
+  because the embedded WASM module has no notion of a "file name" to
+  begin with.
+- **`-e KEY=VALUE`** (repeatable) shows the guest only the environment
+  variables you specify. The host shell's own environment variables are
+  never inherited as-is. `GREETING` stayed empty without `-e` (see the
+  previous chapter).
 
-ここまでの3章（3〜5）で、ExecSandboxの基本姿勢が見えてきたはずである。
-**標準出力・引数・環境変数のような、ふつうのプログラムなら当たり前に
-使えるものすら、明示的に許可しないと使えない。** これがケイパビリティ
-ベースのポリシーの実感である。
+By this point (chapters 3 through 5), ExecSandbox's basic stance should be
+coming into focus. **Even things an ordinary program would take for
+granted — standard output, arguments, environment variables — are
+unusable unless explicitly allowed.** That's what capability-based policy
+feels like in practice.
 
-次の章からは、1つのサンドボックスの中だけでなく、**複数のサンドボックスを
-つなぐ**方法に進む。
+Starting with the next chapter, we move beyond a single sandbox and into
+**connecting multiple sandboxes** together.
 
 ---
-[← 前: 4. 出力を見る](04-seeing-output.md) | [目次](README.md) | [次: 6. メールボックスという考え方 →](06-the-mailbox-idea.md)
+[← Previous: 4. Seeing Output](04-seeing-output.md) | [Index](README.md) | [Next: 6. The Mailbox Idea →](06-the-mailbox-idea.md)

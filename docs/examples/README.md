@@ -1,25 +1,29 @@
-# 実例集
+日本語版: [README_ja.md](README_ja.md)
 
-ExecSandboxで何ができるかを、動くコードと実際のコマンド出力で示す。それぞれ
-自己完結しており、読む順序は問わない。オプションの一覧・書式は
-[`docs/usage/`](../usage/)、設計判断の理由は[`docs/spec/`](../spec/)を参照。
+# Examples
 
-| 例 | 見せるもの | 使う起動オプション |
+Shows what ExecSandbox can do, with working code and actual command output.
+Each one is self-contained, and the reading order doesn't matter. For the
+list and syntax of options, see [`docs/usage/`](../usage/); for the
+rationale behind design decisions, see [`docs/spec/`](../spec/).
+
+| Example | What it shows | Launch options used |
 | :--- | :--- | :--- |
-| [`hello-wasi.md`](hello-wasi.md) | SDK不使用の最小構成 | `-s`, `-e`, `--` |
-| [`sandbox-messaging.md`](sandbox-messaging.md) | サンドボックス間メッセージング | `-n`, `-d` |
-| [`external-connection.md`](external-connection.md) | 外部接続のエコーバック | `-l` |
-| [`policy-and-limits.md`](policy-and-limits.md) | ファイルアクセス・メモリ上限・タイムアウト・乱数/時刻の遮断 | `-v`, `-m`, `-t`, `-x` |
-| [`polyglot-messaging.md`](polyglot-messaging.md) | TinyGoとRustのゲストを相互接続 | `-n`, `-d` |
+| [`hello-wasi.md`](hello-wasi.md) | A minimal setup with no SDK | `-s`, `-e`, `--` |
+| [`sandbox-messaging.md`](sandbox-messaging.md) | Sandbox-to-sandbox messaging | `-n`, `-d` |
+| [`external-connection.md`](external-connection.md) | Echoing back an external connection | `-l` |
+| [`policy-and-limits.md`](policy-and-limits.md) | File access, memory limit, timeout, denying randomness/time | `-v`, `-m`, `-t`, `-x` |
+| [`polyglot-messaging.md`](polyglot-messaging.md) | Connecting a TinyGo guest and a Rust guest | `-n`, `-d` |
 
-`hello-wasi.md`・`policy-and-limits.md`のゲストソースは[`src/`](src/)に
-置いている。`sandbox-messaging.md`・`external-connection.md`・
-`polyglot-messaging.md`は[`execsandbox-sdk`](https://github.com/amisonnet8/execsandbox-sdk)
-リポジトリのexamplesをそのまま使う。
+The guest source for `hello-wasi.md` and `policy-and-limits.md` lives in
+[`src/`](src/). `sandbox-messaging.md`, `external-connection.md`, and
+`polyglot-messaging.md` use the examples from the
+[`execsandbox-sdk`](https://github.com/amisonnet8/execsandbox-sdk)
+repository as-is.
 
-## 前提
+## Prerequisites
 
-いずれの例も、ゲストをビルドするツールチェーン（[TinyGo](https://tinygo.org/)
-または[Rust](https://www.rust-lang.org/)のいずれか、あるいは両方）と、
-`execsandbox-build`が手元にあることを前提にする。ビルダー自体の入手方法は
-リポジトリ直下の[`README.md`](../../README.md)を参照。
+Every example assumes you have a toolchain to build the guest (either
+[TinyGo](https://tinygo.org/) or [Rust](https://www.rust-lang.org/), or
+both), and `execsandbox-build` on hand. For how to obtain the builder
+itself, see [`README.md`](../../README.md) at the repository root.

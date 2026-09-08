@@ -1,3 +1,5 @@
+English version: [execsandbox_spec.md](execsandbox_spec.md)
+
 # ExecSandbox 仕様書
 
 **版**：v1 draft
@@ -716,7 +718,7 @@ windows/amd64, windows/arm64
 
 WASMモジュールは埋め込み済みのため、モジュールを指定する引数は存在しない。
 
-各オプションの詳細な書式・使用例は `../usage/execsandbox.md` を参照。
+各オプションの詳細な書式・使用例は `../usage/execsandbox_ja.md` を参照。
 
 ### 7.1 オプション
 

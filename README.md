@@ -1,49 +1,58 @@
+日本語版は README_ja.md を参照してください。
+
 # ExecSandbox
 
-WASM実行ランタイムとWASMモジュールを1つの実行ファイルに封じ込める、環境構築
-不要のポータブルなサンドボックス実行ツール。ケイパビリティベースのポリシーと、
-Erlang風メールボックスによるメッセージングを備える。
+A portable, zero-setup sandboxed execution tool that bundles a WASM
+runtime and a WASM module into a single executable file. It features
+capability-based policy and Erlang-style mailbox messaging.
 
-## インストール
+## Installation
 
-[Releases](https://github.com/amisonnet8/execsandbox/releases) から、
-環境に合った `execsandbox-build_<タグ>_<GOOS>_<GOARCH>`
-（Windowsのみ `.exe`）をダウンロードする。Goツールチェーンは不要。
+Download `execsandbox-build_<tag>_<GOOS>_<GOARCH>` (`.exe` for Windows
+only) matching your environment from
+[Releases](https://github.com/amisonnet8/execsandbox/releases). No Go
+toolchain required.
 
 ```
 chmod +x execsandbox-build_*
 ```
 
-`.sha256` ファイルが同梱されているので、検証してから使うとよい。
+A `.sha256` file is bundled alongside it, so it's a good idea to verify
+before using it.
 
 ```
 sha256sum -c execsandbox-build_*.sha256
 ```
 
-## クイックスタート
+## Quick Start
 
 ```
-# WASMモジュールを単一の実行ファイルへ埋め込む
+# Embed a WASM module into a single executable
 ./execsandbox-build -o mydb mymodule.wasm
 
-# 起動する。既定では何もできない（ファイルシステム・ネットワーク・
-# 環境変数などは、起動時オプションで明示しない限りすべて遮断される）。
+# Launch it. Nothing is allowed by default (filesystem, network,
+# environment variables, and so on are all blocked unless explicitly
+# permitted at launch).
 ./mydb -s out -- hello
 ```
 
-## ドキュメント
+## Documentation
 
-- [`docs/tour/`](docs/tour/) — 初めての人向けの入門ガイド。上から順に読む
-- [`docs/usage/execsandbox.md`](docs/usage/execsandbox.md) — 生成された
-  実行ファイルの起動オプション一覧
+- [`docs/tour/README.md`](docs/tour/README.md) — an introductory guide for
+  first-time users. Read top to bottom
+- [`docs/usage/execsandbox.md`](docs/usage/execsandbox.md) — the list of
+  launch options for the generated executable
 - [`docs/usage/execsandbox-build.md`](docs/usage/execsandbox-build.md) —
-  ビルダーの使い方
-- [`docs/examples/`](docs/examples/) — 実例集（動くコードと実際の出力）
-- [`docs/spec/execsandbox_spec_ja.md`](docs/spec/execsandbox_spec_ja.md) —
-  仕様書（設計判断の理由まで含む）
+  how to use the builder
+- [`docs/examples/README.md`](docs/examples/README.md) — examples, with
+  working code and actual output
+- [`docs/spec/execsandbox_spec.md`](docs/spec/execsandbox_spec.md) — the
+  specification (includes the rationale behind design decisions)
 
-## ライセンス
+## License
 
-[MIT](LICENSE)。生成される実行ファイルには [wazero](https://github.com/tetratelabs/wazero)
-（Apache-2.0）のコードも含まれるため、第三者へ配布する場合は両方の表示義務が
-生じる。生成物自体が `-L, --print-licenses` で必要な文面を出力できる。
+[MIT](LICENSE). The generated executable also contains
+[wazero](https://github.com/tetratelabs/wazero)'s code (Apache-2.0), so
+distributing it to a third party carries both licenses' attribution
+obligations. The output itself can print the required text via `-L,
+--print-licenses`.

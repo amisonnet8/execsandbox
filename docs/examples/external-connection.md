@@ -1,9 +1,12 @@
-# external-connection — 外部接続をエコーバックする
+日本語版: [external-connection_ja.md](external-connection_ja.md)
 
-ExecSandboxの外へ待ち受けを開き（`-l/--listen`）、受けたデータをそのまま
-書き戻す最小のTCPエコーサーバー。TinyGo版SDKの`Recv`/`ConnWrite`を使う。
+# external-connection — echoing back an external connection
 
-ソース: [`execsandbox-sdk`の`go/examples/echo`](https://github.com/amisonnet8/execsandbox-sdk/tree/main/go/examples/echo)
+Opens a listener outside of ExecSandbox (`-l/--listen`) and writes back
+whatever data it receives — a minimal TCP echo server. Uses the TinyGo
+SDK's `Recv`/`ConnWrite`.
+
+Source: [`execsandbox-sdk`'s `go/examples/echo`](https://github.com/amisonnet8/execsandbox-sdk/tree/main/go/examples/echo)
 
 ```go
 func main() {
@@ -19,21 +22,21 @@ func main() {
 }
 ```
 
-## ビルド
+## Build
 
 ```
 $ tinygo build -target=wasip1 -o echo.wasm .
 $ execsandbox-build -o echo echo.wasm
 ```
 
-## 実行
+## Run
 
 ```
 $ ./echo -l 19001 &
 ```
 
-接続してデータを送ると、そのまま返ってくる。追加ツールなしでbashの
-`/dev/tcp`機能で試せる（`nc`が無い環境でも動く）。
+Connect and send data, and it comes right back. You can try this with no
+extra tools, using bash's `/dev/tcp` feature (works even without `nc`).
 
 ```
 $ exec 3<>/dev/tcp/127.0.0.1/19001
@@ -42,18 +45,21 @@ $ head -c 14 <&3
 hello via bash
 ```
 
-## 解説
+## Discussion
 
-- **`msg.Kind`で3種類のイベントを区別する。** `KindConnEstablished`
-  （接続確立）・`KindConnData`（データ到着）・`KindConnClosed`（切断）が
-  同じ`Recv`のループに合流してくる（サンドボックス間メッセージの
-  `KindMessage`とも同じ受け口）。このechoは`KindConnData`以外を無視する
-  ——仕様書§5.3が推奨する「知らない/使わない`kind`はエラーにせず無視する」
-  という作法にすでに従っている。
-- **`msg.ConnID`が接続を特定する。** 複数のクライアントが同時に接続しても
-  connIDで区別できるが、このechoは受け取ったconnIDへ書き戻すだけなので、
-  複数接続を同時に処理できる（内部で状態を持たないため）。
-- **`-l`は1つのアドレスのみ受け付ける。** 複数ポートで待ち受けたい場合は
-  ExecSandboxインスタンスを複数起動し、サンドボックス間メッセージング
-  （[`sandbox-messaging.md`](sandbox-messaging.md)）で繋ぐ。
-- 接続元アドレスは取得できない（仕様書§4.4の制限）。
+- **`msg.Kind` distinguishes three kinds of events.**
+  `KindConnEstablished` (connection established), `KindConnData` (data
+  arrived), and `KindConnClosed` (disconnected) all funnel into the same
+  `Recv` loop (the very same receiving point as the `KindMessage` used for
+  sandbox-to-sandbox messages). This echo ignores everything but
+  `KindConnData` — already following the practice spec §5.3 recommends:
+  ignore an unknown or unused `kind` rather than treating it as an error.
+- **`msg.ConnID` identifies the connection.** Even with multiple clients
+  connected at once, they're distinguished by connID, but since this echo
+  simply writes back to whichever connID it received on, it can handle
+  multiple connections concurrently (it holds no internal state).
+- **`-l` accepts only one address.** If you need to listen on multiple
+  ports, start multiple ExecSandbox instances and connect them with
+  sandbox-to-sandbox messaging
+  ([`sandbox-messaging.md`](sandbox-messaging.md)).
+- The source address can't be obtained (a limitation noted in spec §4.4).

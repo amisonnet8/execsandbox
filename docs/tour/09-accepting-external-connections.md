@@ -1,10 +1,12 @@
-# 9. 外部から接続を受ける
+日本語版: [09-accepting-external-connections_ja.md](09-accepting-external-connections_ja.md)
 
-サンドボックス同士だけでなく、ExecSandboxの外（TCPクライアントなど）からも
-つながる。`-l/--listen`で待ち受けを開く。
+# 9. Accepting External Connections
 
-以下は受け取ったデータをそのまま書き戻すだけの、最小のTCPエコーサーバー
-である。
+ExecSandbox can be reached not just by other sandboxes, but from outside
+too (a TCP client, say). `-l/--listen` opens a listener.
+
+Below is a minimal TCP echo server that does nothing but write back
+whatever data it receives.
 
 ```go
 func main() {
@@ -26,8 +28,8 @@ $ execsandbox-build -o echo echo.wasm
 $ ./echo -l 19001 &
 ```
 
-追加ツールなしで、bashの`/dev/tcp`機能から接続してみる（`nc`がない環境
-でも動く）。
+Let's connect using bash's `/dev/tcp` feature, with no extra tools (works
+even without `nc`).
 
 ```
 $ exec 3<>/dev/tcp/127.0.0.1/19001
@@ -36,9 +38,10 @@ $ head -c 14 <&3
 hello via bash
 ```
 
-送ったデータがそのまま返ってきた。ここで使っているのは`Recv`（前章までの
-サンドボックス間メッセージングと**同じ受け口**）と、外部接続へ書き戻す
-`ConnWrite`の2つだけである。
+Whatever we sent came right back. All that's used here is `Recv` (**the
+same receiving point** as the sandbox-to-sandbox messaging from the
+previous chapters) and `ConnWrite`, which writes back to an external
+connection.
 
 ---
-[← 前: 8. 送信は届くことを保証しない](08-delivery-is-not-guaranteed.md) | [目次](README.md) | [次: 10. イベントの種類を見分ける →](10-telling-events-apart.md)
+[← Previous: 8. Delivery Is Not Guaranteed](08-delivery-is-not-guaranteed.md) | [Index](README.md) | [Next: 10. Telling Events Apart →](10-telling-events-apart.md)

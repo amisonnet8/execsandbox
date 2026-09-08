@@ -1,14 +1,18 @@
-# execsandbox-build — ビルダー
+日本語版: [execsandbox-build_ja.md](execsandbox-build_ja.md)
 
-`.wasm` をExecSandbox本体に埋め込み、単一の実行ファイルを生成する。
+# execsandbox-build — the builder
+
+Embeds a `.wasm` file into the ExecSandbox core, producing a single
+executable file.
 
 ```
-execsandbox-build -o <出力ファイル名> [--target <GOOS>/<GOARCH>] <入力.wasm>
+execsandbox-build -o <output file> [--target <GOOS>/<GOARCH>] <input.wasm>
 ```
 
-**本ページの内容はフェーズ④完了時点の実測値。** `--help` の実際の出力は
-次の通り（`-V` はビルド時の `-ldflags -X main.version=` 埋め込み前の
-開発ビルドでは `dev` と表示される）。
+**The contents of this page are measured values as of the completion of
+Phase 4.** The actual `--help` output is as follows (`-V` prints `dev` on a
+development build that predates the `-ldflags -X main.version=` embedding
+done at build time).
 
 ```
 $ execsandbox-build --help
@@ -38,59 +42,62 @@ The generated executable embeds ExecSandbox (MIT) and wazero (Apache-2.0).
 Distributing it to a third party carries their attribution obligations.
 ```
 
-## インストール
+## Installation
 
-**GitHub Releasesから、自分の環境に合ったビルダーをダウンロードする。**
-`execsandbox-build_<タグ>_<GOOS>_<GOARCH>`（Windowsのみ `.exe`）という
-名前のアセットが6環境分公開されている。ダウンロードして実行ビットを立てる
-だけで使える（Goツールチェーンは不要）。
-
-```
-curl -LO https://github.com/amisonnet8/execsandbox/releases/download/<タグ>/execsandbox-build_<タグ>_linux_amd64
-chmod +x execsandbox-build_<タグ>_linux_amd64
-```
-
-各アセットには `.sha256` ファイルが添付されているので、ダウンロード後に
-検証できる。
+**Download the builder matching your environment from GitHub Releases.**
+Assets named `execsandbox-build_<tag>_<GOOS>_<GOARCH>` (`.exe` for Windows
+only) are published for six platforms. Just download it and set the
+executable bit — no Go toolchain required.
 
 ```
-sha256sum -c execsandbox-build_<タグ>_linux_amd64.sha256
+curl -LO https://github.com/amisonnet8/execsandbox/releases/download/<tag>/execsandbox-build_<tag>_linux_amd64
+chmod +x execsandbox-build_<tag>_linux_amd64
 ```
 
-**`go install` には対応していない。** ビルダーは仕様書§6.3により6環境分の
-ベースバイナリを `//go:embed` で自分自身に内包する設計だが、この埋め込み
-対象はリポジトリにコミットしていない（配布物をリポジトリへコミットしない
-方針、`.claude/rules/distribution.md`）。そのため
-`go install .../cmd/execsandbox-build@latest` を実行しても埋め込みが空の
-まま（＝どのターゲットを指定してもベースバイナリが見つからずエラーになる）
-ビルダーができてしまう。GitHub Releasesの6本のみを配布経路とする。
+Each asset ships with a `.sha256` file, so you can verify it after
+downloading.
 
-## オプション
+```
+sha256sum -c execsandbox-build_<tag>_linux_amd64.sha256
+```
 
-| 短 | 長 | 引数 | 内容 | 既定値 |
+**`go install` is not supported.** Per spec §6.3, the builder is designed to
+embed six platforms' worth of base binaries into itself via `//go:embed`,
+but that embed target is not committed to the repository (following the
+policy of not committing distributables to the repository,
+`.claude/rules/distribution.md`). As a result, running `go install
+.../cmd/execsandbox-build@latest` would produce a builder whose embed is
+empty — meaning no target would find its base binary, and it would error
+regardless of which target is chosen. The six binaries on GitHub Releases
+are the only distribution channel.
+
+## Options
+
+| Short | Long | Argument | Description | Default |
 | :--- | :--- | :--- | :--- | :--- |
-| `-o` | `--output` | ファイル名 | 出力する実行ファイル名 | （必須） |
-| — | `--target` | `GOOS/GOARCH` | 対象プラットフォーム | ビルダー自身の環境 |
-| `-h` | `--help` | — | ヘルプ | — |
-| `-V` | `--version` | — | バージョン | — |
+| `-o` | `--output` | file name | Output executable's name | (required) |
+| — | `--target` | `GOOS/GOARCH` | Target platform | the builder's own platform |
+| `-h` | `--help` | — | Help | — |
+| `-V` | `--version` | — | Version | — |
 
-`--target` に短縮形がないのは、他のオプション（`-o`/`-h`/`-V`）ほど頻用しない
-ためと、`GOOS/GOARCH`という形式自体が省略しにくい情報量を持つため。
+`--target` has no short form because it's used far less often than the
+other options (`-o`/`-h`/`-V`), and because the `GOOS/GOARCH` form itself
+carries enough information that it resists abbreviation.
 
-## 使い方
+## Usage
 
 ```
-# 自分と同じ環境向け
+# For the same platform you're running on
 execsandbox-build -o mydb mydb.wasm
 
-# クロスビルド
+# Cross-build
 execsandbox-build -o mydb --target linux/arm64 mydb.wasm
 ```
 
-ビルダーは対応する全プラットフォーム向けのベースバイナリを内包しているため、
-`--target` を変えるだけでクロスビルドできる。Goツールチェーンは不要。
+Because the builder embeds base binaries for every supported platform, you
+can cross-build just by changing `--target`. No Go toolchain required.
 
-## 対応プラットフォーム
+## Supported Platforms
 
 ```
 linux/amd64     linux/arm64
@@ -98,74 +105,81 @@ darwin/amd64    darwin/arm64
 windows/amd64   windows/arm64
 ```
 
-`windows/*` を指定した場合、出力ファイル名の末尾が `.exe`（大文字小文字を
-区別しない）でなければ自動的に付与される。
+When `windows/*` is specified, `.exe` (case-insensitive) is automatically
+appended if the output file name doesn't already end with it.
 
-`--target` にこの6通り以外の値を指定するとエラーになり生成しない
-（下記「起動時オプションの誤りと終了コード」参照）。
+Specifying a value for `--target` outside these six is an error, and
+nothing is produced (see "Startup option errors and exit codes" below).
 
-## 生成されるもの
+## What Gets Produced
 
 ```
-[ベースバイナリ][WASMモジュール][フッター]
+[base binary][WASM module][footer]
 ```
 
-ベースバイナリにはExecSandbox本体と `wazero` が含まれる。生成された実行
-ファイルは、起動時に自身の末尾からWASMモジュールを読み出して実行する。
+The base binary contains the ExecSandbox core and `wazero`. At startup, the
+generated executable reads the WASM module from its own tail and runs it.
 
-ビルダーはサンドボックスポリシーを一切埋め込まない。マウント、メモリ上限、
-待ち受けアドレスなどはすべて**起動時**に指定する
-（[`execsandbox.md`](execsandbox.md)）。同じWASMモジュールから作った実行
-ファイルを、異なる配線・異なる制限で何度でも起動できる。
+The builder never bakes in any sandbox policy whatsoever. Mounts, memory
+limits, listen addresses, and everything else are all specified at
+**launch time** ([`execsandbox.md`](execsandbox.md)). The same WASM module
+can be turned into an executable, then launched any number of times with
+different wiring or different limits.
 
-生成された実行ファイルには実行ビット（`0o755`）が立つ。Windowsには実行
-ビットの概念がないため、この設定は意味を持たない（無視される）。
+The generated executable gets its executable bit set (`0o755`). Windows has
+no concept of an executable bit, so this setting has no effect there (it's
+ignored).
 
-## ライセンス表示について
+## About License Notices
 
-生成された実行ファイルには、ExecSandbox本体（MIT）と `wazero`（Apache-2.0）の
-コードが含まれる。**生成物を第三者へ配布する場合、両者の表示義務が生じる。**
+The generated executable contains code from both the ExecSandbox core (MIT)
+and `wazero` (Apache-2.0). **Distributing the output to a third party
+carries an obligation to include both parties' notices.**
 
-| 対象 | ライセンス | 必要な対応 |
+| Subject | License | Required action |
 | :--- | :--- | :--- |
-| ExecSandbox | MIT | 著作権表示とライセンス全文の同梱 |
-| wazero | Apache-2.0 | 著作権表示、ライセンス全文、NOTICEの同梱 |
+| ExecSandbox | MIT | Include the copyright notice and full license text |
+| wazero | Apache-2.0 | Include the copyright notice, full license text, and NOTICE |
 
-**この義務は、ビルダーではなく生成された実行ファイル自身が果たせる。**
-生成物に `-L, --print-licenses` を渡すと、必要な文面がすべて標準出力へ
-書き出される（[`execsandbox.md`](execsandbox.md)の「`-L, --print-licenses`」
-参照）。
+**This obligation can be satisfied by the generated executable itself,
+rather than by the builder.** Passing `-L, --print-licenses` to the output
+prints all the required text to standard output (see "`-L,
+--print-licenses`" in [`execsandbox.md`](execsandbox.md)).
 
 ```
 ./mydb -L > THIRD-PARTY-LICENSES.txt
 ```
 
-第三者へ配布されるのはビルダーではなく生成物であるため、配布者がビルダーへ
-アクセスできなくても、生成物自身がこのコマンドで義務を果たせるようにして
-ある。
+Since it's the output, not the builder, that gets distributed to third
+parties, this is arranged so that the output itself can satisfy the
+obligation with this command even if the distributor has no access to the
+builder.
 
-WASMモジュール自体のライセンスは自由に選べる。どちらもコピーレフトではない
-ため、生成物全体をプロプライエタリを含む任意のライセンスで配布できる。
+The WASM module's own license is entirely free to choose. Since neither
+license is copyleft, the output as a whole can be distributed under any
+license, including a proprietary one.
 
-## コード署名について
+## About Code Signing
 
-生成される実行ファイルは未署名。macOS・Windowsでは初回起動時に警告が表示される
-場合がある（Gatekeeper、SmartScreen）。
+The generated executable is unsigned. macOS and Windows may show a warning
+on first launch (Gatekeeper, SmartScreen).
 
-これは、末尾への追記が既存の署名を壊すためである（署名はファイル全体の
-ハッシュで検証される）。配布時に署名が必要な場合は、生成後に各自で署名し直す。
+This is because appending to the end of the file breaks any existing
+signature (a signature is verified against a hash of the whole file). If
+you need a signature for distribution, re-sign it yourself after
+generation.
 
-## 起動時オプションの誤りと終了コード
+## Startup Option Errors and Exit Codes
 
-| 状況 | 終了コード | 出力先 |
+| Situation | Exit code | Output destination |
 | :--- | :--- | :--- |
-| `--help` / `-h` | 0 | 標準出力 |
-| `--version` / `-V` | 0 | 標準出力 |
-| `-o/--output` 未指定、入力`.wasm`の指定漏れ・過多、`--target`の書式・値が不正 | 2 | 標準エラー出力（`execsandbox-build:`接頭辞） |
-| 入力`.wasm`が読めない、出力ファイルが書けないなど（生成に失敗した場合） | 1 | 標準エラー出力（`execsandbox-build:`接頭辞） |
-| 生成に成功した場合 | 0 | — |
+| `--help` / `-h` | 0 | standard output |
+| `--version` / `-V` | 0 | standard output |
+| `-o/--output` missing, the input `.wasm` is missing or given more than once, `--target`'s syntax or value is invalid | 2 | standard error (`execsandbox-build:` prefix) |
+| The input `.wasm` can't be read, the output file can't be written, or another reason generation failed | 1 | standard error (`execsandbox-build:` prefix) |
+| Generation succeeded | 0 | — |
 
-オプションエラー（終了コード2）の実際の出力例：
+An actual example of an option error (exit code 2):
 
 ```
 $ execsandbox-build -o mydb

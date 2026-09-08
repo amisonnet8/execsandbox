@@ -1,35 +1,39 @@
-# 7. 2つのサンドボックスをつなぐ
+日本語版: [07-connecting-two-sandboxes_ja.md](07-connecting-two-sandboxes_ja.md)
 
-ここからはTinyGo版SDK（[`execsandbox-sdk`](https://github.com/amisonnet8/execsandbox-sdk)）
-の`Send`/`Recv`を使う。SDKがポインタ・長さ・バッファ確保を隠してくれるので、
-ゲスト側のコードはシンプルになる。
+# 7. Connecting Two Sandboxes
 
-`sender`は宛先番号1へ1回だけ送って終了する。
+From here on we use the TinyGo SDK
+([`execsandbox-sdk`](https://github.com/amisonnet8/execsandbox-sdk))'s
+`Send`/`Recv`. The SDK hides pointers, lengths, and buffer allocation, so
+the guest-side code stays simple.
+
+`sender` sends once to destination number 1, then exits.
 
 ```go
 execsandbox.Send(1, []byte("hello from execsandbox-sdk"))
 ```
 
-`receiver`は1通受け取るまでブロックし、内容を表示して終了する。
+`receiver` blocks until one message arrives, prints it, and exits.
 
 ```go
-msg, ok := execsandbox.Recv(-1) // 負の値=無限待ち
+msg, ok := execsandbox.Recv(-1) // negative = wait indefinitely
 if ok {
 	fmt.Printf("kind=%d data=%s\n", msg.Kind, msg.Data)
 }
 ```
 
-ビルドして埋め込む。
+Build and embed both.
 
 ```
-$ tinygo build -target=wasip1 -o sender.wasm .    # sender/ で
-$ tinygo build -target=wasip1 -o receiver.wasm .  # receiver/ で
+$ tinygo build -target=wasip1 -o sender.wasm .    # in sender/
+$ tinygo build -target=wasip1 -o receiver.wasm .  # in receiver/
 $ execsandbox-build -o nodeA sender.wasm
 $ execsandbox-build -o nodeB receiver.wasm
 ```
 
-`-n`で自分のIDを名乗り、`-d N=ID`で宛先番号にIDを割り当てる。receiverを
-`-n nodeB`で先に起動し、senderから`-d 1=nodeB`で送る。
+Name your own ID with `-n`, and assign an ID to a destination number with
+`-d N=ID`. Start the receiver first with `-n nodeB`, then have the sender
+send with `-d 1=nodeB`.
 
 ```
 $ ./nodeB -n nodeB -s out &
@@ -38,13 +42,14 @@ $ wait
 kind=0 data=hello from execsandbox-sdk
 ```
 
-`kind=0`は`KindMessage`（サンドボックス間メッセージ）を表す——のちほど
-外部接続の章で、他の`kind`の値も登場する。
+`kind=0` represents `KindMessage` (a sandbox-to-sandbox message) — other
+`kind` values show up later, in the external-connections chapters.
 
-注目したいのは、**宛先の解決はゲストのコードではなく起動オプションが
-決めている**点である。ゲスト側は`Send(1, ...)`と番号だけを指定し、番号1が
-実際に誰を指すかは起動時の`-d 1=nodeB`が決める。ゲストのコードを書き換え
-ずに、宛先の組み替え（`-d 1=別のサンドボックス`）ができる。
+What's worth noticing is that **it's the launch options, not the guest's
+code, that decide how a destination resolves.** The guest side only
+specifies `Send(1, ...)` and a number; who number 1 actually refers to is
+decided by the launch-time `-d 1=nodeB`. The destination can be rewired
+(`-d 1=some-other-sandbox`) without touching the guest's code at all.
 
 ---
-[← 前: 6. メールボックスという考え方](06-the-mailbox-idea.md) | [目次](README.md) | [次: 8. 送信は届くことを保証しない →](08-delivery-is-not-guaranteed.md)
+[← Previous: 6. The Mailbox Idea](06-the-mailbox-idea.md) | [Index](README.md) | [Next: 8. Delivery Is Not Guaranteed →](08-delivery-is-not-guaranteed.md)

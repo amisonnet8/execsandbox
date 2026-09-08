@@ -1,11 +1,15 @@
-# 3. 既定では何もできない
+日本語版: [03-nothing-by-default_ja.md](03-nothing-by-default_ja.md)
 
-ExecSandboxのケイパビリティは**既定拒否**である。起動時オプションで
-明示しない限り、標準出力もファイルもネットワークも環境変数も、ゲストからは
-何も見えない。これをコードで確認する。
+# 3. Nothing by Default
 
-以下は`fmt`と`os`だけを使う、SDKすら使わない最小のゲストである
-（[`docs/examples/src/hello-wasi/main.go`](../examples/src/hello-wasi/main.go)）。
+ExecSandbox's capabilities are **denied by default**. Unless you make it
+explicit through a launch-time option, the guest sees nothing — not
+standard output, not files, not the network, not environment variables.
+Let's confirm this with code.
+
+Below is a minimal guest that uses nothing but `fmt` and `os` — it doesn't
+even use the SDK
+([`docs/examples/src/hello-wasi/main.go`](../examples/src/hello-wasi/main.go)).
 
 ```go
 package main
@@ -22,14 +26,14 @@ func main() {
 }
 ```
 
-TinyGoでビルドし、埋め込む。
+Build it with TinyGo and embed it.
 
 ```
 $ tinygo build -target=wasip1 -o hello-wasi.wasm .
 $ execsandbox-build -o hello-wasi hello-wasi.wasm
 ```
 
-何もオプションを付けずに実行すると、何も表示されない。
+Run it with no options at all, and nothing gets printed.
 
 ```
 $ ./hello-wasi
@@ -37,9 +41,10 @@ $ echo $?
 0
 ```
 
-`fmt.Println`を3回呼んでいるのに、何も出ていない。ゲストはクラッシュも
-していない（終了コード0）——**標準出力がどこにも接続されていない**ため、
-出力は黙って捨てられている。次の章でこれを繋ぐ。
+Even though `fmt.Println` was called three times, nothing came out. The
+guest didn't crash either (exit code 0) — **standard output simply isn't
+connected to anything**, so the output was silently discarded. We'll wire
+it up in the next chapter.
 
 ---
-[← 前: 2. インストールと最初の実行](02-install-and-first-run.md) | [目次](README.md) | [次: 4. 出力を見る →](04-seeing-output.md)
+[← Previous: 2. Installing and Your First Run](02-install-and-first-run.md) | [Index](README.md) | [Next: 4. Seeing Output →](04-seeing-output.md)

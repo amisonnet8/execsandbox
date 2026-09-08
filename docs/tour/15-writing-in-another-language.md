@@ -1,14 +1,17 @@
-# 15. 複数の言語で書く
+日本語版: [15-writing-in-another-language_ja.md](15-writing-in-another-language_ja.md)
 
-ExecSandboxのWASM ABI（仕様書§5）は言語非依存を謳っている。ここまで
-TinyGoだけを使ってきたが、最後にRustと組み合わせてそれを確かめる。
+# 15. Writing in Another Language
 
-7章と同じ`sender`/`receiver`の組み合わせで、片方をTinyGo版、もう片方を
-Rust版に差し替える。
+ExecSandbox's WASM ABI (spec §5) claims to be language-agnostic. We've
+used only TinyGo so far — let's finally confirm this by pairing it with
+Rust.
+
+Using the same `sender`/`receiver` pair as chapter 7, we swap one side for
+its Rust version.
 
 ```
-$ tinygo build -target=wasip1 -o go-sender.wasm .       # TinyGo版sender
-$ cargo build --target wasm32-wasip1 --release --examples  # Rust版receiver
+$ tinygo build -target=wasip1 -o go-sender.wasm .       # TinyGo sender
+$ cargo build --target wasm32-wasip1 --release --examples  # Rust receiver
 $ execsandbox-build -o nodeA-go go-sender.wasm
 $ execsandbox-build -o nodeB-rust receiver.wasm
 ```
@@ -20,17 +23,19 @@ $ wait
 kind=0 data=hello from execsandbox-sdk
 ```
 
-逆方向（Rust送信→TinyGo受信）も同様に動く。**受信側のコードを一切変更
-せずに**、送信側の言語だけを差し替えられる。ExecSandboxのホストにとって
-両者は同じWASMモジュールでしかなく、「バッファはゲスト側で確保する」
-「メタデータは8バイト固定レイアウト」というABIの取り決めだけで相互運用性
-が成立している。
+The reverse direction (Rust sends, TinyGo receives) works just the same.
+**Without changing a single line of the receiver's code**, only the
+sender's language can be swapped out. To the ExecSandbox host, both are
+nothing more than a WASM module, and interoperability is achieved purely
+through the ABI's contract: "the buffer is allocated on the guest side,"
+"metadata is a fixed 8-byte layout."
 
-TinyGo（GCあり）とRust（GCなし）という対照的なメモリモデルの2言語で
-成立していることが、ABIが特定の言語ランタイムに依存していないことの
-実証になっている。3言語目のSDKを書く場合も、`send`/`recv`/`conn_write`/
-`max_frame`の4関数を正しく`import`すれば、この2つとそのまま相互接続
-できるはずである。
+That this holds across two languages with starkly different memory
+models — TinyGo (with a GC) and Rust (no GC) — demonstrates that the ABI
+doesn't depend on any particular language runtime. Writing a third-language
+SDK should be able to interconnect with these two as-is, as long as it
+correctly `import`s the four functions
+`send`/`recv`/`conn_write`/`max_frame`.
 
 ---
-[← 前: 14. 乱数・時刻を遮断する](14-denying-random-and-time.md) | [目次](README.md) | [次: 16. 次に読むもの →](16-where-to-go-next.md)
+[← Previous: 14. Denying Randomness and Time](14-denying-random-and-time.md) | [Index](README.md) | [Next: 16. Where to Go Next →](16-where-to-go-next.md)

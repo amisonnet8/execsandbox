@@ -1,0 +1,32 @@
+English version: [05-args-and-env.md](05-args-and-env.md)
+
+# 5. 引数と環境変数
+
+`hello-wasi`は自分の引数（`os.Args`）と環境変数`GREETING`も表示する。これを
+`--`と`-e`で渡してみる。
+
+```
+$ ./hello-wasi -s out -e GREETING=konnichiwa -- foo bar
+hello from execsandbox
+args: [execsandbox foo bar]
+GREETING=konnichiwa
+```
+
+- **`--`以降**がゲストの引数になる。`foo`と`bar`が`os.Args[1:]`にそのまま
+  渡っている。ただし`os.Args[0]`はゲスト自身のファイル名ではなく、固定
+  文字列`"execsandbox"`になる——埋め込まれたWASMモジュールに、そもそも
+  「ファイル名」という概念がないため。
+- **`-e KEY=VALUE`**（繰り返し指定可）が、指定した環境変数だけをゲストに
+  見せる。ホスト側のシェルの環境変数がそのまま引き継がれることはない。
+  `-e`を付けなければ`GREETING`は空のままだった（前章参照）。
+
+ここまでの3章（3〜5）で、ExecSandboxの基本姿勢が見えてきたはずである。
+**標準出力・引数・環境変数のような、ふつうのプログラムなら当たり前に
+使えるものすら、明示的に許可しないと使えない。** これがケイパビリティ
+ベースのポリシーの実感である。
+
+次の章からは、1つのサンドボックスの中だけでなく、**複数のサンドボックスを
+つなぐ**方法に進む。
+
+---
+[← 前: 4. 出力を見る](04-seeing-output_ja.md) | [目次](README_ja.md) | [次: 6. メールボックスという考え方 →](06-the-mailbox-idea_ja.md)

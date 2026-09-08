@@ -1,7 +1,9 @@
-# 13. ファイルを見せる
+日本語版: [13-exposing-files_ja.md](13-exposing-files_ja.md)
 
-`-v/--volume`は、ホスト側のディレクトリをゲストへマウントする。既定では
-ファイルシステムへのアクセス経路そのものが存在しない。
+# 13. Exposing Files
+
+`-v/--volume` mounts a host directory into the guest. By default, there is
+no access path to the filesystem at all.
 
 ```
 $ tinygo build -target=wasip1 -o file-access.wasm .
@@ -10,9 +12,9 @@ $ ./file-access -s out
 write failed: open /data/hello.txt: file does not exist
 ```
 
-3章で見た「既定では何もできない」がファイルシステムにも一貫している。
-`-v HOST:GUEST`でマウントすると、ゲスト側の`GUEST`パス（ここでは`/data`）
-以下だけが見えるようになる。
+The "nothing by default" we saw in chapter 3 holds consistently for the
+filesystem too. Mounting with `-v HOST:GUEST` makes only the guest-side
+`GUEST` path (here, `/data`) and everything under it visible.
 
 ```
 $ mkdir hostdata
@@ -23,9 +25,9 @@ $ cat hostdata/hello.txt
 written by the guest
 ```
 
-`HOST:GUEST:ro`のように`:ro`を付けると読み取り専用にできる。ゲストに
-見せるのはマウントしたディレクトリの中身だけであり、ホストのファイル
-システム全体が見えるわけではない。
+Appending `:ro`, as in `HOST:GUEST:ro`, makes it read-only. What the guest
+sees is only the contents of the mounted directory — never the host's
+filesystem as a whole.
 
 ---
-[← 前: 12. メモリに上限をかける](12-capping-memory.md) | [目次](README.md) | [次: 14. 乱数・時刻を遮断する →](14-denying-random-and-time.md)
+[← Previous: 12. Capping Memory](12-capping-memory.md) | [Index](README.md) | [Next: 14. Denying Randomness and Time →](14-denying-random-and-time.md)

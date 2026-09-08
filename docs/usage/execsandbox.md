@@ -1,15 +1,20 @@
-# execsandbox — 生成された実行ファイルの起動オプション
+日本語版: [execsandbox_ja.md](execsandbox_ja.md)
 
-`execsandbox-build` が生成した実行ファイルの起動時オプション。WASMモジュールは
-埋め込み済みのため、モジュールを指定する引数は存在しない。
+# execsandbox — launch-time options for the generated executable
+
+The launch-time options for the executable produced by `execsandbox-build`.
+Since the WASM module is already embedded, there is no argument that
+specifies the module.
 
 ```
-<実行ファイル> [オプション...] [-- WASMへの引数...]
+<executable> [options...] [-- arguments to the WASM module...]
 ```
 
-**本ページの内容はフェーズ④Step3完了時点（仕様書§7.1の全オプション実装済み）
-の実測値。** `--help` の実際の出力は次の通り（`-V`/`-h` はビルド時の
-`-ldflags -X main.version=` 埋め込み前の開発ビルドでは `dev` と表示される）。
+**The contents of this page are measured values as of the completion of
+Phase 4 Step 3 (all options in spec §7.1 are implemented).** The actual
+`--help` output is as follows (`-V`/`-h` print `dev` on a development build
+that predates the `-ldflags -X main.version=` embedding done at build
+time).
 
 ```
 $ execsandbox --help
@@ -45,110 +50,116 @@ optional "i" (e.g. 512M, 512Mi). A number with no suffix is bytes.
 Everything after "--" is passed to the WASM module as its arguments.
 ```
 
-## オプション一覧
+## Option Reference
 
-| 短 | 長 | 引数 | 内容 | 既定値 |
+| Short | Long | Argument | Description | Default |
 | :--- | :--- | :--- | :--- | :--- |
-| `-n` | `--name` | `ID` | 自身のID。他のサンドボックスから宛先として指定される名前 | なし（受信しない） |
-| `-d` | `--dest` | `N=ID` | 宛先番号への割り当て。繰り返し可 | なし |
-| `-e` | `--env` | `KEY=VALUE` | 環境変数。繰り返し可 | なし |
-| `-v` | `--volume` | `HOST:GUEST[:ro]` | ディレクトリのマウント。繰り返し可 | なし（アクセス不可） |
-| `-m` | `--mem-limit` | サイズ | WASM線形メモリの上限 | `512M` |
-| `-b` | `--mailbox-limit` | 整数 | メールボックスの通数上限 | `1024` |
-| `-f` | `--max-frame` | サイズ | 1通の最大バイト数 | `1M` |
-| `-l` | `--listen` | アドレス | 外部接続の待ち受け。1つのみ | なし（待ち受けない） |
-| `-s` | `--stdio` | ストリーム列挙 | 外部に接続するストリーム | なし（すべて遮断） |
-| `-t` | `--timeout` | 期間 | 実行時間制限 | なし（無期限） |
-| `-x` | `--deny` | 項目列挙 | 機能の遮断 | なし（すべて許可） |
-| `-q` | `--quiet` | — | ホスト側ログの抑制 | 出力する |
-| `-h` | `--help` | — | ヘルプ | — |
-| `-V` | `--version` | — | バージョン | — |
-| `-L` | `--print-licenses` | — | 著作権表示・ライセンス全文の表示 | — |
+| `-n` | `--name` | `ID` | Own ID. The name other sandboxes address as a destination | none (does not receive) |
+| `-d` | `--dest` | `N=ID` | Assign a destination number. Repeatable | none |
+| `-e` | `--env` | `KEY=VALUE` | Environment variable. Repeatable | none |
+| `-v` | `--volume` | `HOST:GUEST[:ro]` | Mount a directory. Repeatable | none (no access) |
+| `-m` | `--mem-limit` | size | WASM linear memory limit | `512M` |
+| `-b` | `--mailbox-limit` | integer | Mailbox capacity in messages | `1024` |
+| `-f` | `--max-frame` | size | Maximum bytes per message | `1M` |
+| `-l` | `--listen` | address | Listen for external connections. At most one | none (does not listen) |
+| `-s` | `--stdio` | stream list | Streams to connect externally | none (all blocked) |
+| `-t` | `--timeout` | duration | Execution time limit | none (unlimited) |
+| `-x` | `--deny` | item list | Capabilities to deny | none (all allowed) |
+| `-q` | `--quiet` | — | Suppress host-side logging | logs |
+| `-h` | `--help` | — | Help | — |
+| `-V` | `--version` | — | Version | — |
+| `-L` | `--print-licenses` | — | Print copyright notices and full license text | — |
 
-`-v` はマウント（volume）であり、verbose ではない。バージョンは `-V`。
+`-v` is for a volume, not verbose. Version is `-V`.
 
-## 通信の設定
+## Communication Settings
 
 ### `-n, --name`
 
-自身のIDを指定する。他のサンドボックスがこのIDを `-d` で指定することで、
-メッセージを送れるようになる。
+Specifies your own ID. Once another sandbox names this ID with `-d`, it can
+send you messages.
 
-省略した場合、サンドボックス間メッセージを受信しない（送信専用、あるいは
-外部接続だけを受けるサンドボックスになる）。
+If omitted, the sandbox does not receive sandbox-to-sandbox messages (it
+becomes send-only, or one that only accepts external connections).
 
 ### `-d, --dest`
 
-宛先番号にIDを割り当てる。番号は1以上の整数。
+Assigns an ID to a destination number. The number is an integer of 1 or
+greater.
 
 ```
 -d 1=dbcore -d 2=logger
 ```
 
-WASMモジュール側は番号のみを指定して送信する（`Send(1, data)`）。実際に誰と
-繋がるかは、この起動オプションが決める。
+The WASM module side sends by specifying only the number (`Send(1, data)`).
+This launch option decides who it actually connects to.
 
-割り当てられていない番号へ送信した場合、エラーにはならず黙って破棄される。
+Sending to a number that wasn't assigned isn't an error; it's silently
+dropped.
 
-同じ番号を `-d` で2回指定するとエラーになり起動しない（後勝ちで上書きは
-しない）。
+Specifying the same number with `-d` twice is an error and prevents
+startup (the later one does not silently overwrite the earlier one).
 
-## リソース制限
+## Resource Limits
 
-### `-m, --mem-limit` / `-f, --max-frame` — サイズの表記
+### `-m, --mem-limit` / `-f, --max-frame` — Size Notation
 
-| 記述 | 意味 |
+| Written as | Means |
 | :--- | :--- |
-| `512M` | 512 × 1024 × 1024 バイト |
-| `512m` | 同上（大文字小文字を区別しない） |
-| `512Mi` | 同上（`Ki`/`Mi`/`Gi` も受理する） |
-| `536870912` | 単位なしはバイト数 |
+| `512M` | 512 × 1024 × 1024 bytes |
+| `512m` | same (case-insensitive) |
+| `512Mi` | same (`Ki`/`Mi`/`Gi` also accepted) |
+| `536870912` | no unit means bytes |
 
-`K`/`M`/`G` はいずれも1024の冪として解釈する。
+`K`/`M`/`G` are all interpreted as powers of 1024.
 
-**上限**: `-m` は4GiB（2<sup>32</sup>バイト。WASM線形メモリのページ数
-上限に由来）、`-f` は2GiB−1バイト（ABIの`max_frame()`がi32を返すため）を
-超えるとエラーになり起動しない。`-m` の指定値は64KiB（WASMの1ページ）単位に
-切り上げられる（例えば`-m 1K`の実効値は64KiB）。
+**Limits**: exceeding 4GiB (2<sup>32</sup> bytes, derived from WASM linear
+memory's page-count limit) for `-m`, or 2GiB−1 bytes (because the ABI's
+`max_frame()` returns an i32) for `-f`, is an error that prevents startup.
+A value given to `-m` is rounded up to a multiple of 64KiB (one WASM page)
+— for example, `-m 1K`'s effective value is 64KiB.
 
 ### `-b, --mailbox-limit`
 
-メールボックスに溜め込める**通数**。上限に達した状態で新しいメッセージが
-到着すると、そのメッセージが破棄される（tail-drop）。破棄はホスト側の標準
-エラー出力に記録される。
+The **message count** the mailbox can hold. When a new message arrives
+while at capacity, that message is discarded (tail-drop). The discard is
+recorded to host-side standard error.
 
-`-b` × `-f` がメールボックス側のメモリ上界になる。既定値では
-1M × 1024 = 1G。
+`-b` × `-f` becomes the mailbox's memory ceiling. With the defaults, that's
+1M × 1024 = 1G.
 
-小さいメッセージが大量に流れる構成なら、同じ上界のまま深さを増やせる。
+For a configuration with a high volume of small messages, you can raise the
+depth while keeping the same ceiling.
 
 ```
--f 64K -b 16384    # 上界は同じ1G、深さは16倍
+-f 64K -b 16384    # same 1G ceiling, 16x the depth
 ```
 
 ### `-t, --timeout`
 
-実行時間の上限。Go標準の期間文字列（`30s`、`5m`、`1h30m`等）で指定する。
-`0`以下の値はエラーになる（「タイムアウトなし」は値を指定しないことで
-表す。`-t 0s`ではない）。
+The execution time limit. Given as a Go-standard duration string (`30s`,
+`5m`, `1h30m`, etc.). A value of `0` or less is an error ("no timeout" is
+expressed by not specifying the flag at all, not by `-t 0s`).
 
 ```
 -t 30s
 -t 5m
 ```
 
-上限に達すると、WASMモジュールは強制終了される。プロセスの終了コードは
-**124**（Unixの`timeout(1)`コマンドと同じ値）になり、ホスト側ログに
-`execsandbox: execution timed out after <期間>` が出力される（`-q`で抑制可能）。
+Once the limit is reached, the WASM module is forcibly terminated. The
+process's exit code becomes **124** (the same value Unix's `timeout(1)`
+command uses), and the host log prints `execsandbox: execution timed out
+after <duration>` (suppressible with `-q`).
 
-**ゲスト自身が`recv`の戻り値を確認して自発的に終了する実装になっている
-場合、期限が来た時点でより穏やかに（強制終了ではなく）終了できることが
-ある。** その場合の終了コードは0（あるいはゲストが指定した値）になり、
-124にはならない。`recv`は期限が来るとタイムアウト相当の戻り値
-（`-1`）を返すため、ゲスト側でこれを無視せず処理を終える実装にしておくと、
-より予測しやすい終了になる。
+**If the guest itself checks `recv`'s return value and is implemented to
+exit voluntarily, it may be able to exit more gracefully (rather than being
+forcibly killed) once the deadline arrives.** In that case the exit code
+becomes 0 (or whatever value the guest specifies), not 124. Since `recv`
+returns a timeout-equivalent value (`-1`) once the deadline arrives, an
+implementation on the guest side that doesn't ignore this and instead winds
+down leads to a more predictable exit.
 
-## 外部接続
+## External Connections
 
 ### `-l, --listen`
 
@@ -159,103 +170,112 @@ WASMモジュール側は番号のみを指定して送信する（`Send(1, data
 -l unix:/run/mydb.sock
 ```
 
-| 記述 | 待ち受け |
+| Written as | Listens on |
 | :--- | :--- |
-| （省略） | 待ち受けない |
-| `5432` | `127.0.0.1:5432`（ポートのみ指定はループバック補完） |
-| `127.0.0.1:5432` | 同上 |
-| `192.168.1.10:5432` | 指定インターフェースのみ |
-| `:5432` | 全インターフェース |
-| `[::1]:5432` | IPv6ループバック |
-| `/run/mydb.sock` | Unixドメインソケット（先頭が`/`） |
-| `unix:/run/mydb.sock` | 同上（`unix:`接頭辞を明示） |
+| (omitted) | does not listen |
+| `5432` | `127.0.0.1:5432` (a port-only value fills in loopback) |
+| `127.0.0.1:5432` | same |
+| `192.168.1.10:5432` | only the given interface |
+| `:5432` | all interfaces |
+| `[::1]:5432` | IPv6 loopback |
+| `/run/mydb.sock` | Unix domain socket (starts with `/`) |
+| `unix:/run/mydb.sock` | same (explicit `unix:` prefix) |
 
-ホスト部が指定するのは**待ち受けるインターフェース**であり、接続元の制限では
-ない。接続元によるフィルタリングは行わないので、必要な場合はファイアウォールや
-リバースプロキシを使う。
+The host part specifies **which interface to listen on**; it does not
+restrict connection sources. No filtering by source is performed, so use a
+firewall or reverse proxy if needed.
 
-待ち受けは1インスタンスにつき1つのみ。**`-l`を2回以上指定すると起動時に
-エラーになる。** 複数必要な場合は、外部接続を受けるサンドボックスを複数立てて
-コアへ向ける。
+At most one listener per instance. **Specifying `-l` more than once is a
+startup error.** If you need more than one, stand up multiple sandboxes
+that accept external connections and point them at the core.
 
-**Windowsのドライブレター付きパス**（例：`C:\run\mydb.sock`）を指定する場合は、
-`unix:`接頭辞が必須。先頭が`/`でもポート番号形式でもないため、接頭辞なしでは
-`HOST:PORT`形式として解釈を試み、書式エラーになる。
+For **a Windows path with a drive letter** (e.g. `C:\run\mydb.sock`), the
+`unix:` prefix is required. Since it starts with neither `/` nor a
+port-number form, omitting the prefix would attempt to parse it as
+`HOST:PORT` and fail with a syntax error.
 
 ```
 -l unix:C:\run\mydb.sock
 ```
 
-**Unixドメインソケットのstaleなファイルは自動的に片付けない。** `-n`による
-サンドボックス間通信の待ち受け（仕様書§3.2）とは異なり、`-l`で指定するパスは
-利用者が明示したものであり、勝手に削除するのは危険なため。前回のプロセスが
-残したソケットファイルが残っている場合、起動時にエラーになる。事前に手動で
-削除するか、`systemd`のソケットアクティベーション等、運用側で管理すること。
+**Stale Unix domain socket files are not cleaned up automatically.** Unlike
+the listening for sandbox-to-sandbox communication done via `-n` (spec
+§3.2), the path given to `-l` was explicitly chosen by the user, and it
+would be dangerous to delete it on our own. If a socket file left behind by
+a previous process is still there, startup fails with an error. Either
+remove it manually beforehand, or manage it operationally — with systemd
+socket activation, for example.
 
-### 受信イベント（`recv`のkind）
+### Receive events (`recv`'s kind)
 
-`-l`で受け付けた接続は、送受信ともにメールボックスへイベントとして合流する
-（仕様書§4.3、§5.3）。`recv`が返す`meta_ptr`の`kind`は以下の3種類。
+Connections accepted via `-l` funnel both sending and receiving into the
+mailbox as events (spec §4.3, §5.3). The `kind` in `recv`'s `meta_ptr` takes
+three values.
 
-| `kind` | 種別 | `conn_id` | ペイロード |
+| `kind` | Category | `conn_id` | Payload |
 | :--- | :--- | :--- | :--- |
-| `1` | 外部接続・確立 | 有効 | なし |
-| `2` | 外部接続・データ | 有効 | あり |
-| `3` | 外部接続・切断 | 有効 | なし |
+| `1` | External connection: established | valid | none |
+| `2` | External connection: data | valid | present |
+| `3` | External connection: closed | valid | none |
 
-（`kind=0`はサンドボックス間メッセージ。仕様書§5.3参照。）
+(`kind=0` is a sandbox-to-sandbox message. See spec §5.3.)
 
-`conn_id`は1から始まる単調増加の整数で、切断後も再利用しない。ゲストは
-`conn_id`をキーにした状態テーブルを持ち、確立イベントで作り、データイベントで
-更新し、切断イベントで破棄する。
+`conn_id` is a monotonically increasing integer starting from 1, never
+reused after disconnection. A guest keeps a state table keyed by `conn_id`,
+creating an entry on the established event, updating it on data events, and
+discarding it on the closed event.
 
-**切断イベント（`kind=3`）は、メールボックスの通数上限（`-b`）に達していても
-必ず配送される。** サンドボックス間メッセージ（`kind=0`）や確立・データ
-イベントは上限到達時に破棄されうる（tail-drop）が、切断イベントだけは例外的に
-上限を無視して配送する。ゲストが`conn_id`ごとの状態をいつ破棄してよいか
-判断できずリークすることを防ぐための挙動である。
+**The disconnect event (`kind=3`) is always delivered even if the mailbox's
+message-count cap (`-b`) has been reached.** Sandbox-to-sandbox messages
+(`kind=0`) and the established/data events can be dropped once the cap is
+reached (tail-drop), but the disconnect event alone is delivered regardless
+of the cap, as an exception. This exists to prevent a leak from the guest
+having no way to know when it's safe to discard its per-`conn_id` state.
 
 ### `conn_write`
 
-`conn_write(conn_id, ptr, len)`（仕様書§5.4）でゲストから接続へ書き戻す。
+`conn_write(conn_id, ptr, len)` (spec §5.4) writes back to a connection from
+the guest.
 
-| 戻り値 | 意味 |
+| Return value | Meaning |
 | :--- | :--- |
-| `0` | 成功 |
-| `-1` | 不明な`conn_id`（`-l`未指定の場合は常に`-1`）、または書き込みに失敗した場合 |
+| `0` | Success |
+| `-1` | Unknown `conn_id` (always `-1` if `-l` wasn't specified), or the write failed |
 
-書き込みが実際に失敗した場合（相手が既に切断している等）も`-1`を返す。この
-とき接続は内部的に閉じられ、切断イベント（`kind=3`）が配送されたうえで、
-以後その`conn_id`は本当に「不明な`conn_id`」として扱われる。
+If the write actually fails (e.g. the peer has already disconnected), `-1`
+is also returned. In that case the connection is closed internally, a
+disconnect event (`kind=3`) is delivered, and from then on that `conn_id`
+is treated as a genuinely "unknown `conn_id`."
 
-**`--timeout`を指定している場合、`conn_write`の書き込み待ちにもその期限が
-適用される。** 期限までに書き込みが完了しなければ失敗（`-1`）として扱われる。
-`--timeout`を指定していない場合、書き込みは完了するまでブロックする
-（相手の受信が滞っている接続への書き込みが、ゲスト全体を長時間停止させ
-うる点に注意）。
+**If `--timeout` is specified, that deadline also applies to waiting for a
+`conn_write` to complete.** If the write doesn't finish by the deadline, it
+is treated as a failure (`-1`). If `--timeout` isn't specified, the write
+blocks until it completes (note that a write to a connection whose peer is
+slow to receive can stall the whole guest for a long time).
 
-## 入出力・権限
+## I/O and Permissions
 
 ### `-s, --stdio`
 
-外部（シェル）に接続するストリームを列挙する。カンマ区切り。
+Lists the streams connected to the outside (the shell), comma-separated.
 
-| 値 | 対象 |
+| Value | Target |
 | :--- | :--- |
-| `in` | 標準入力 |
-| `out` | 標準出力 |
-| `err` | 標準エラー出力 |
-| `all` | 上記すべて |
+| `in` | standard input |
+| `out` | standard output |
+| `err` | standard error |
+| `all` | all of the above |
 
 ```
--s out              # 標準出力のみ
--s in,out           # 対話的なモジュール向け
+-s out              # standard output only
+-s in,out           # for an interactive module
 -s all
 ```
 
-指定しないストリームは遮断される（何も読めず、書いても捨てられる）。
+A stream that isn't listed is blocked (nothing can be read, and anything
+written is discarded).
 
-ファイルパスは受け付けない。出力先の振り分けはシェルのリダイレクトで行う。
+File paths are not accepted. Route output using shell redirection instead.
 
 ```
 ./mymodule -s out > output.txt
@@ -264,54 +284,56 @@ WASMモジュール側は番号のみを指定して送信する（`Send(1, data
 ### `-v, --volume`
 
 ```
--v /data:/data          # 読み書き可
--v /etc/conf:/conf:ro   # 読み取り専用
+-v /data:/data          # read-write
+-v /etc/conf:/conf:ro   # read-only
 ```
 
-指定しない限り、WASMモジュールはファイルシステムに一切アクセスできない。
+Unless specified, the WASM module has no filesystem access whatsoever.
 
-`HOST:GUEST[:ro]` の区切りは末尾から解釈するため、Windowsのドライブレター
-（`C:\data:/data` のように `HOST` 自体に `:` を含む場合）も指定できる。
-`HOST` は起動時に存在確認を行い、存在しないパスを指定するとエラーで
-起動しない（ディレクトリを事前に作っておく必要がある）。`GUEST` は必ず
-`/` で始まる必要がある。
+The `HOST:GUEST[:ro]` split is parsed from the end, which also allows a
+Windows drive letter (as in `C:\data:/data`, where `HOST` itself contains a
+`:`). `HOST` is checked for existence at startup; specifying a
+nonexistent path is an error that prevents startup (the directory needs to
+already exist). `GUEST` must start with `/`.
 
 ### `-x, --deny`
 
-| 値 | 遮断対象 |
+| Value | Blocked |
 | :--- | :--- |
-| `random` | 乱数生成 |
-| `time` | 時刻取得 |
+| `random` | random number generation |
+| `time` | time retrieval |
 
 ```
 -x random,time
 ```
 
-乱数と時刻のみ、既定で許可されている（他のポリシーは既定で禁止）。明示的に
-禁止したい場合に指定する。
+Only randomness and time default to allowed (every other policy defaults to
+denied). Specify this when you want to explicitly deny them.
 
-**`-x time`の実効的な意味について**: WASI（`clock_time_get`）には「時刻取得を
-拒否する」ためのエラー経路が定義されていない。そのため`-x time`は、実際には
-実行系（wazero）の既定である偽の時計（起動のたびに2022-01-01T00:00:00Z
-付近から1回の呼び出しごとに1ミリ秒ずつ進むだけの、実時刻と無関係な値）を
-そのまま見せる、という形で実現している。ゲストは「エラーになる」のではなく
-「本物ではない値が返る」ことでしか時刻取得の禁止を知ることができない。
+**On the effective meaning of `-x time`**: WASI (`clock_time_get`) defines
+no error path for "refuse to retrieve the time." So `-x time` is actually
+realized by showing the underlying runtime's (wazero's) default fake clock
+as-is — a value unrelated to real time, starting around
+2022-01-01T00:00:00Z on each launch and advancing by just one millisecond
+per call. A guest can only learn that time retrieval is being denied by
+noticing "the value isn't real," not by an error.
 
-## その他
+## Miscellaneous
 
-### `--` — WASMへの引数
+### `--` — Arguments to the WASM Module
 
-`--` 以降のすべての引数を、WASMモジュールへの引数として渡す。
+Every argument after `--` is passed as an argument to the WASM module.
 
 ```
 ./mydb -e LOG=debug -d 1=core -- --verbose --level 3
-                                 ^^^^^^^^^^^^^^^^^^ ここからWASMへ
+                                 ^^^^^^^^^^^^^^^^^^ to the WASM module from here
 ```
 
 ### `-q, --quiet`
 
-ExecSandbox本体が出力するログ（`execsandbox:` で始まる行）を抑制する。
-WASMモジュール側の出力（`-s err`）には影響しない。
+Suppresses logs emitted by ExecSandbox itself (lines starting with
+`execsandbox:`). It does not affect the WASM module's own output (`-s
+err`).
 
 ### `-L, --print-licenses`
 
@@ -319,17 +341,20 @@ WASMモジュール側の出力（`-s err`）には影響しない。
 ./mydb -L
 ```
 
-生成された実行ファイルには、ExecSandbox本体（MIT）と `wazero`
-（Apache-2.0）のコードが含まれる。**この実行ファイルを第三者へ配布する
-場合、両者の著作権表示とライセンス全文（wazeroはNOTICEも）を同梱する
-義務が生じる。** `-L, --print-licenses` は、その義務を果たすために必要な
-文面をすべて標準出力へ書き出す。`--help`/`--version` と同様、WASMモジュール
-の有無に関わらず動作し、`-q` の影響も受けない。
+The generated executable contains code from both ExecSandbox itself (MIT)
+and `wazero` (Apache-2.0). **Distributing this executable to a third party
+carries an obligation to include both parties' copyright notices and full
+license text (and, for wazero, its NOTICE) with it.** `-L,
+--print-licenses` prints everything needed to satisfy that obligation to
+standard output. Like `--help`/`--version`, it works regardless of whether
+a WASM module is present, and is unaffected by `-q`.
 
-表示義務を果たす主体を `execsandbox-build`（ビルダー）ではなく**生成された
-実行ファイル自体**に持たせているのは、第三者へ配布されるのは生成物であり、
-配布者がビルダーを手元に持っているとは限らないため。生成物自身が文面を
-出力できれば、配布者がビルダーへのアクセスを失っていても義務を果たせる。
+The party responsible for satisfying this obligation is placed on **the
+generated executable itself**, rather than on `execsandbox-build` (the
+builder), because it's the output that gets distributed to third parties,
+and a distributor isn't guaranteed to still have the builder on hand. If
+the output itself can print the text, the obligation can be met even if the
+distributor has lost access to the builder.
 
 ```
 $ ./mydb -L | head -3
@@ -338,12 +363,13 @@ Licensed under the MIT License. Full text below.
 
 ```
 
-## ホスト側ログ
+## Host-Side Logging
 
-本体は標準エラー出力へ `execsandbox:` を接頭辞としてログを出す。
-WASMモジュール自身の出力とは区別される。**ログとエラーメッセージは英語。**
+The core writes logs to standard error, prefixed with `execsandbox:`. This
+is kept distinct from the WASM module's own output. **Logs and error
+messages are in English.**
 
-主に出力されるもの（実際の文言）：
+What's mainly emitted (the actual wording):
 
 ```
 execsandbox: mailbox full, dropped 3 message(s)
@@ -352,33 +378,35 @@ execsandbox: dropped 1 oversized frame(s) received from a peer (max 1048576 byte
 execsandbox: execution timed out after 30s
 ```
 
-- メールボックス上限によるメッセージ破棄（tail-drop。初回のみ即座に出力し、
-  以降は一定間隔で累計数をまとめて出力する）
-- `--max-frame` を超えるメッセージの破棄（送信側・受信側それぞれで検出しうる）
-- `--timeout` による強制終了
-- 起動時のエラー（`-q` では抑制されない。下記「起動時オプションの誤りと
-  終了コード」参照）
+- Message discards due to the mailbox cap (tail-drop; the first is emitted
+  immediately, and after that a running total is emitted at intervals)
+- Discards of messages exceeding `--max-frame` (detectable on either the
+  sending or the receiving side)
+- Forced termination due to `--timeout`
+- Startup errors (not suppressed by `-q` — see "Startup option errors and
+  exit codes" below)
 
-未割り当ての宛先への送信は、ログを出さない（設定を見れば分かる静的な状態の
-ため）。
+Sending to an unassigned destination emits no log (it's a static state
+visible just by looking at the configuration).
 
-`-q, --quiet` で抑制できるのは、起動時のエラーを除く上記すべて（動的に
-発生しうるイベント）。WASMモジュール側の出力（`-s err`）には影響しない。
+`-q, --quiet` suppresses everything above except startup errors (the
+dynamically occurring events). It does not affect the WASM module's own
+output (`-s err`).
 
-## 起動時オプションの誤りと終了コード
+## Startup Option Errors and Exit Codes
 
-| 状況 | 終了コード | 出力先 |
+| Situation | Exit code | Output destination |
 | :--- | :--- | :--- |
-| `--help` / `-h` | 0 | 標準出力 |
-| `--version` / `-V` | 0 | 標準出力 |
-| `--print-licenses` / `-L` | 0 | 標準出力 |
-| オプションの誤り（未定義のフラグ、値の書式違反、`-v`のホストパスが存在しないなど） | 2 | 標準エラー出力（`execsandbox:`接頭辞、`-q`でも抑制されない） |
-| WASMモジュールが埋め込まれていない、ホスト関数登録の失敗など（起動できなかった場合） | 1 | 標準エラー出力（`execsandbox:`接頭辞） |
-| `--timeout` の期限に達し強制終了された場合 | 124 | ログは`-q`で抑制可 |
-| WASMモジュールが自ら終了コードを指定した場合（例: WASI `proc_exit`） | その値をそのまま使う | — |
-| WASMモジュールが正常に終了した場合 | 0 | — |
+| `--help` / `-h` | 0 | standard output |
+| `--version` / `-V` | 0 | standard output |
+| `--print-licenses` / `-L` | 0 | standard output |
+| An option error (an undefined flag, a malformed value, `-v`'s host path doesn't exist, etc.) | 2 | standard error (`execsandbox:` prefix, not suppressed even by `-q`) |
+| The WASM module isn't embedded, host function registration failed, or another reason startup couldn't proceed | 1 | standard error (`execsandbox:` prefix) |
+| Forcibly terminated after reaching the `--timeout` deadline | 124 | the log can be suppressed with `-q` |
+| The WASM module specified its own exit code (e.g. WASI `proc_exit`) | that value, used as-is | — |
+| The WASM module exited normally | 0 | — |
 
-オプションエラー（終了コード2）の実際の出力例：
+An actual example of an option error (exit code 2):
 
 ```
 $ execsandbox -m bogus

@@ -1,40 +1,46 @@
-# 2. インストールと最初の実行
+日本語版: [02-install-and-first-run_ja.md](02-install-and-first-run_ja.md)
 
-## ビルダーを入手する
+# 2. Installing and Your First Run
 
-[Releases](https://github.com/amisonnet8/execsandbox/releases)から、環境に
-合った`execsandbox-build_<タグ>_<GOOS>_<GOARCH>`（Windowsのみ`.exe`）を
-ダウンロードする。Goツールチェーンは不要。
+## Getting the builder
+
+Download `execsandbox-build_<tag>_<GOOS>_<GOARCH>` (`.exe` for Windows
+only) matching your environment from
+[Releases](https://github.com/amisonnet8/execsandbox/releases). No Go
+toolchain required.
 
 ```
 $ chmod +x execsandbox-build_*
 ```
 
-`.sha256`ファイルが同梱されているので、検証してから使うとよい。
+A `.sha256` file is bundled alongside it, so it's a good idea to verify
+before using it.
 
 ```
 $ sha256sum -c execsandbox-build_*.sha256
 ```
 
-## WASMモジュールを埋め込む
+## Embedding a WASM module
 
-`execsandbox-build`は、WASMモジュールを1つの実行ファイルへ埋め込む
-「ビルダー」である。手元にビルド済みの`.wasm`があれば、それを渡すだけでよい
-（`mymodule.wasm`の作り方は次章以降で扱う）。
+`execsandbox-build` is the "builder" that embeds a WASM module into a
+single executable file. If you already have a built `.wasm` on hand, just
+hand it over (how to build `mymodule.wasm` is covered starting in the next
+chapter).
 
 ```
 $ ./execsandbox-build -o mydb mymodule.wasm
 execsandbox-build: wrote mydb (linux/amd64, 8788514 bytes)
 ```
 
-## 実行する
+## Running it
 
 ```
 $ ./mydb -s out -- hello
 ```
 
-`mydb`はもう単体の実行ファイルであり、`execsandbox-build`もWASMランタイムも
-不要になっている。`-s out`と`--`が何をしているかは、次の章から順に見ていく。
+`mydb` is now a standalone executable — neither `execsandbox-build` nor a
+WASM runtime is needed anymore. What `-s out` and `--` are doing is
+something we'll look at, one at a time, starting with the next chapter.
 
 ---
-[← 前: 1. ExecSandboxとは](01-what-is-execsandbox.md) | [目次](README.md) | [次: 3. 既定では何もできない →](03-nothing-by-default.md)
+[← Previous: 1. What Is ExecSandbox?](01-what-is-execsandbox.md) | [Index](README.md) | [Next: 3. Nothing by Default →](03-nothing-by-default.md)

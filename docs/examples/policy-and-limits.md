@@ -1,31 +1,34 @@
-# policy-and-limits — リソース制限とケイパビリティ
+日本語版: [policy-and-limits_ja.md](policy-and-limits_ja.md)
 
-`-v`（ファイルマウント）・`-m`（メモリ上限）・`-t`（タイムアウト）・`-x`
-（乱数/時刻の遮断）を、それぞれ最小のTinyGoゲストで実演する。SDKは使わない
-（ExecSandbox本体のポリシー機能だけを見せるため）。
+# policy-and-limits — resource limits and capabilities
 
-ソース: [`src/policy-and-limits/`](src/policy-and-limits/)（`file-access/`・
-`mem-limit/`・`timeout/`・`deny/`の4つの独立したゲスト）
+Demonstrates `-v` (file mounting), `-m` (memory limit), `-t` (timeout), and
+`-x` (denying randomness/time), each with a minimal TinyGo guest. No SDK is
+used, so as to show only ExecSandbox's own policy features.
 
-## `-v, --volume` — ファイルアクセス
+Source: [`src/policy-and-limits/`](src/policy-and-limits/) (four independent
+guests: `file-access/`, `mem-limit/`, `timeout/`, `deny/`)
 
-[`file-access/main.go`](src/policy-and-limits/file-access/main.go)は
-`/data/hello.txt`（ゲスト側のマウントポイント直下）へ書き込み、読み返す。
+## `-v, --volume` — file access
+
+[`file-access/main.go`](src/policy-and-limits/file-access/main.go) writes to
+`/data/hello.txt` (right under the guest-side mount point) and reads it
+back.
 
 ```
 $ tinygo build -target=wasip1 -o file-access.wasm .
 $ execsandbox-build -o file-access file-access.wasm
 ```
 
-`-v`を指定しない既定状態では、ファイルシステムへのアクセス経路自体が
-存在しない。
+By default, without `-v`, the access path to the filesystem doesn't exist
+at all.
 
 ```
 $ ./file-access -s out
 write failed: open /data/hello.txt: file does not exist
 ```
 
-`-v HOST:/data`でホスト側ディレクトリをマウントすると書き込める。
+Mounting a host directory with `-v HOST:/data` allows writing.
 
 ```
 $ mkdir hostdata
@@ -36,11 +39,12 @@ $ cat hostdata/hello.txt
 written by the guest
 ```
 
-## `-m, --mem-limit` — メモリ上限
+## `-m, --mem-limit` — memory limit
 
-[`mem-limit/main.go`](src/policy-and-limits/mem-limit/main.go)は1MiBずつ
-スライスを確保し続け、確保できた分だけ手元に保持する（GCで回収されて
-上限に達しないという事故を防ぐため）。
+[`mem-limit/main.go`](src/policy-and-limits/mem-limit/main.go) keeps
+allocating slices 1MiB at a time, holding on to everything it manages to
+allocate (to prevent the GC from reclaiming them and never hitting the
+limit).
 
 ```
 $ tinygo build -target=wasip1 -o mem-limit.wasm .
@@ -53,18 +57,19 @@ fatal error: out of memory
 execsandbox: run WASM module: module[main] function[_start] failed: wasm error: unreachable
 ```
 
-TinyGoのランタイム自体が確保領域（線形メモリ）の上限に達すると`fatal
-error: out of memory`でゲストごと終了する。`-m 16M`でも12MiBあたりで
-尽きるのは、TinyGoのランタイム自体やGCのメタデータが線形メモリの一部を
-既に使っているため。**ホストのプロセス自体はクラッシュせず、ゲストの
-異常終了として扱われる**（終了コード1、`execsandbox:`接頭辞のログ）。
+Once TinyGo's own runtime hits the ceiling of its allocation region (linear
+memory), it exits the guest with `fatal error: out of memory`. It runs out
+around 12MiB even with `-m 16M` because TinyGo's runtime itself and the
+GC's metadata already occupy part of linear memory. **The host process
+itself doesn't crash; this is treated as an abnormal exit of the guest**
+(exit code 1, an `execsandbox:`-prefixed log line).
 
-## `-t, --timeout` — 実行時間制限
+## `-t, --timeout` — execution time limit
 
-[`timeout/main.go`](src/policy-and-limits/timeout/main.go)は`recv`さえ
-呼ばない、戻り値を一切確認しない純粋な無限ループ（`.claude/rules/
-wazero-quirks.md`が言う「ホスト関数の外で完結する無限ループ」の最も単純な
-形）。
+[`timeout/main.go`](src/policy-and-limits/timeout/main.go) doesn't even
+call `recv` — a pure infinite loop that checks nothing at all (the
+simplest form of what `.claude/rules/wazero-quirks.md` calls "an infinite
+loop that completes entirely outside any host function call").
 
 ```
 $ tinygo build -target=wasip1 -o timeout.wasm .
@@ -75,21 +80,23 @@ execsandbox: execution timed out after 1s
 real	0m1.010s
 ```
 
-終了コードは`124`（Unixの`timeout(1)`コマンドと同じ慣習）。`-q`を付けると
-このログは抑制されるが、終了コードは変わらない。
+The exit code is `124` (the same convention as Unix's `timeout(1)`
+command). Adding `-q` suppresses this log line, but the exit code doesn't
+change.
 
-## `-x, --deny` — 乱数・時刻の遮断
+## `-x, --deny` — denying randomness and time
 
-[`deny/main.go`](src/policy-and-limits/deny/main.go)は`crypto/rand`で
-1バイト、`time.Now()`で現在時刻を取得して表示する。
+[`deny/main.go`](src/policy-and-limits/deny/main.go) fetches one byte of
+randomness via `crypto/rand` and the current time via `time.Now()`, and
+prints both.
 
 ```
 $ tinygo build -target=wasip1 -o deny.wasm .
 $ execsandbox-build -o deny deny.wasm
 ```
 
-既定（`-x`なし）では、乱数は実行のたびに変わり、時刻は実際の現在時刻に
-一致する。
+By default (no `-x`), the random byte changes on every run, and the time
+matches the real current time.
 
 ```
 $ ./deny -s out
@@ -100,10 +107,11 @@ random byte: 87
 clock: 2026-09-08T16:02:50Z
 ```
 
-`-x random,time`を指定すると、**時刻は`docs/usage/execsandbox.md`が説明する
-通り2022-01-01T00:00:00Zの偽時計に固定される**が、**乱数は実行するたびに
-同じ`117`という値になる**（真の乱数ではなくなるという意味では遮断されて
-いるが、エラーにはならない）。
+With `-x random,time`, **the time is pinned to the fake clock at
+2022-01-01T00:00:00Z, as `docs/usage/execsandbox.md` explains**, but **the
+random byte becomes the same value, `117`, on every run** (denied in the
+sense that it's no longer truly random, but this doesn't surface as an
+error).
 
 ```
 $ ./deny -x random,time -s out
@@ -114,20 +122,22 @@ random byte: 117
 clock: 2022-01-01T00:00:00Z
 ```
 
-### なぜ乱数は「エラー」ではなく固定値になるのか
+### Why randomness becomes a fixed value instead of an "error"
 
-仕様書§5.6・`.claude/rules/wazero-quirks.md`の設計では、`-x random`は
-`random_get`の呼び出し自体を常にエラーで遮断する。ところが**TinyGoの
-`crypto/rand`（`wasip1`ターゲット）は、WASIの`random_get`を直接呼ぶのでは
-なく、`arc4random_buf`というlibc関数を経由する**。この関数はCの慣習として
-戻り値を持たず、失敗を呼び出し元へ伝える手段がない。結果として、内部で
-`random_get`がエラーになっても、`arc4random_buf`はそれを握りつぶし
-（TinyGoのwasi-libcの実装依存で、未初期化のバッファをそのまま返すため
-毎回同じ値になっていると見られる)、ゲスト側からは「常に同じ値が返る」と
-いう形で観測される。
+Per spec §5.6 and `.claude/rules/wazero-quirks.md`'s design, `-x random`
+always blocks the `random_get` call itself with an error. However, **TinyGo's
+`crypto/rand` (on the `wasip1` target) doesn't call WASI's `random_get`
+directly — it goes through a libc function called `arc4random_buf`**. By C
+convention, this function has no return value and no way to propagate a
+failure to its caller. As a result, even when `random_get` fails internally,
+`arc4random_buf` swallows it (this appears to depend on TinyGo's wasi-libc
+implementation returning an uninitialized buffer as-is, producing the same
+value every time), and the guest side observes it as "the same value comes
+back every time."
 
-**これはExecSandbox本体のバグではなく、ゲスト言語のlibc実装に起因する
-挙動である。** `-x random`はホスト側のABI境界（`random_get`）では確実に
-遮断できているが、その先でゲストのランタイムがエラーをどう扱うかは
-ゲスト側の実装次第、という点を示す実例になっている。Rust版SDKや生のABIを
-直接叩くゲストでは異なる挙動になりうる。
+**This isn't a bug in ExecSandbox itself — it's a behavior stemming from the
+guest language's libc implementation.** `-x random` reliably blocks at the
+host's ABI boundary (`random_get`), but this is a live example showing that
+how the guest runtime handles the resulting error is entirely up to the
+guest's own implementation. Behavior may differ for the Rust SDK or a guest
+that calls the raw ABI directly.

@@ -1,20 +1,23 @@
-# 6. メールボックスという考え方
+日本語版: [06-the-mailbox-idea_ja.md](06-the-mailbox-idea_ja.md)
 
-ExecSandboxのインスタンスは、それぞれが**メールボックス**を1つ持っている
-——Erlangのプロセスと同じ考え方である。他のサンドボックスや外部の接続から
-届いたものは、いったんこのメールボックスに積まれ、ゲストは`Recv`で1通ずつ
-取り出す。
+# 6. The Mailbox Idea
 
-重要な特徴が2つある。
+Every ExecSandbox instance holds one **mailbox** of its own — the same
+idea as an Erlang process. Anything arriving from another sandbox or an
+external connection is first queued into this mailbox, and the guest takes
+messages out one at a time with `Recv`.
 
-- **送信は一方的（Push型）。** `Send`に戻り値はない。相手に届いたかどうかを
-  確認する手段は用意されていない。到達確認が必要なら、アプリケーション側で
-  ACKを設計する。
-- **メールボックスには上限がある。** 受信側が詰まっている間に届いた分は、
-  上限を超えると古い方から捨てられる（tail-drop）。無制限に溜め込んで
-  メモリを食い潰すことはない。
+Two properties matter here.
 
-これから、この仕組みを使って2つのサンドボックスをつなぐ。
+- **Sending is one-way (a Push model).** `Send` has no return value. There
+  is no way to confirm whether the peer received it. If you need delivery
+  confirmation, design your own ACK at the application level.
+- **The mailbox has a cap.** Once it's full, a newly arriving message is
+  the one that gets discarded (tail-drop), not an existing one — the order
+  of what's already queued is never disturbed. It also never grows
+  without bound and eats up memory.
+
+Next, we'll use this mechanism to connect two sandboxes.
 
 ---
-[← 前: 5. 引数と環境変数](05-args-and-env.md) | [目次](README.md) | [次: 7. 2つのサンドボックスをつなぐ →](07-connecting-two-sandboxes.md)
+[← Previous: 5. Arguments and Environment Variables](05-args-and-env.md) | [Index](README.md) | [Next: 7. Connecting Two Sandboxes →](07-connecting-two-sandboxes.md)

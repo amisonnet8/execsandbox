@@ -1,38 +1,42 @@
-# sandbox-messaging — サンドボックス間メッセージング
+日本語版: [sandbox-messaging_ja.md](sandbox-messaging_ja.md)
 
-2つのExecSandboxインスタンスを、Erlang風メールボックスでつなぐ最小構成。
-TinyGo版SDK（[`execsandbox-sdk`](https://github.com/amisonnet8/execsandbox-sdk)）の
-`Send`/`Recv`を使う。
+# sandbox-messaging — sandbox-to-sandbox messaging
 
-ソース: [`execsandbox-sdk`の`go/examples/sender`](https://github.com/amisonnet8/execsandbox-sdk/tree/main/go/examples/sender)・
+A minimal setup connecting two ExecSandbox instances through an
+Erlang-style mailbox. Uses the TinyGo SDK
+([`execsandbox-sdk`](https://github.com/amisonnet8/execsandbox-sdk))'s
+`Send`/`Recv`.
+
+Source: [`execsandbox-sdk`'s `go/examples/sender`](https://github.com/amisonnet8/execsandbox-sdk/tree/main/go/examples/sender) ·
 [`go/examples/receiver`](https://github.com/amisonnet8/execsandbox-sdk/tree/main/go/examples/receiver)
 
 ```go
-// sender: 宛先番号1へ1回だけ送って終了する
+// sender: sends once to destination number 1, then exits
 execsandbox.Send(1, []byte("hello from execsandbox-sdk"))
 ```
 
 ```go
-// receiver: 1通受け取るまでブロックし、内容を表示して終了する
-msg, ok := execsandbox.Recv(-1) // 負の値=無限待ち
+// receiver: blocks until one message arrives, prints it, and exits
+msg, ok := execsandbox.Recv(-1) // negative = wait indefinitely
 if ok {
 	fmt.Printf("kind=%d data=%s\n", msg.Kind, msg.Data)
 }
 ```
 
-## ビルド
+## Build
 
 ```
-$ tinygo build -target=wasip1 -o sender.wasm .    # sender/ で
-$ tinygo build -target=wasip1 -o receiver.wasm .  # receiver/ で
+$ tinygo build -target=wasip1 -o sender.wasm .    # in sender/
+$ tinygo build -target=wasip1 -o receiver.wasm .  # in receiver/
 $ execsandbox-build -o nodeA sender.wasm
 $ execsandbox-build -o nodeB receiver.wasm
 ```
 
-## 実行
+## Run
 
-`-n`で自分のIDを名乗り、`-d N=ID`で宛先番号にIDを割り当てる。receiverを
-`-n nodeB`で先に起動し、senderから`-d 1=nodeB`で送る。
+Name your own ID with `-n`, and assign an ID to a destination number with
+`-d N=ID`. Start the receiver first with `-n nodeB`, then have the sender
+send with `-d 1=nodeB`.
 
 ```
 $ ./nodeB -n nodeB -s out &
@@ -41,16 +45,19 @@ $ wait
 kind=0 data=hello from execsandbox-sdk
 ```
 
-## 解説
+## Discussion
 
-- **`kind=0`は`KindMessage`**（サンドボックス間メッセージ）。外部接続の
-  イベント（`KindConnEstablished`/`KindConnData`/`KindConnClosed`、
-  kind=1〜3）と同じ`Recv`の戻り値で区別される（仕様書§5.3）。
-- **宛先の解決は起動オプションが決める。** ゲスト側のコードは`Send(1,
-  ...)`と番号だけを指定し、番号1が実際に誰を指すかは起動時の`-d 1=nodeB`が
-  決める。ゲストのコードを書き換えずに宛先の組み替えができる。
-- **`Send`は到達を保証しない。** senderが先に起動しreceiverがまだ`-n`で
-  待ち受けを始めていないタイミングで送信すると、宛先未起動として黙って
-  破棄される（仕様書§3.4）。上のコマンド例のように、届くまで送信側を
-  リトライする運用が必要になる（本番のオーケストレーションではACKを
-  アプリケーション側で設計する）。
+- **`kind=0` is `KindMessage`** (a sandbox-to-sandbox message). It's
+  distinguished through the same `Recv` return value as external-connection
+  events (`KindConnEstablished`/`KindConnData`/`KindConnClosed`, kind=1
+  through 3; spec §5.3).
+- **The launch options decide how a destination resolves.** The guest side
+  only ever specifies `Send(1, ...)` and a number; who number 1 actually
+  refers to is decided by the launch-time `-d 1=nodeB`. The destination
+  wiring can be rearranged without touching the guest's code.
+- **`Send` doesn't guarantee delivery.** If the sender starts first and
+  sends before the receiver has started listening via `-n`, the message is
+  silently dropped as an unassigned destination (spec §3.4). As in the
+  command example above, retrying the sender until it gets through is
+  necessary in practice (a production orchestration would design its own
+  ACK at the application level).

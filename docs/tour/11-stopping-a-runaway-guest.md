@@ -1,10 +1,13 @@
-# 11. 暴走を止める
+日本語版: [11-stopping-a-runaway-guest_ja.md](11-stopping-a-runaway-guest_ja.md)
 
-ここからはSDKを使わない、ExecSandbox本体のポリシー機能だけを見る4つの章
-に進む。まずは`-t/--timeout`——実行時間の上限である。
+# 11. Stopping a Runaway Guest
 
-以下のゲストは、`Recv`さえ呼ばない、戻り値を一切確認しない純粋な無限
-ループである。
+From here on, we move into four chapters that use no SDK at all, looking
+only at ExecSandbox's own policy features. First up: `-t/--timeout` — the
+execution time limit.
+
+The guest below doesn't even call `Recv`; it's a pure infinite loop that
+checks nothing whatsoever.
 
 ```go
 func main() {
@@ -22,12 +25,13 @@ execsandbox: execution timed out after 1s
 real	0m1.010s
 ```
 
-`-t 1s`を指定すると、ゲストが何もチェックしていなくても、1秒後に確実に
-強制終了する。終了コードは`124`（Unixの`timeout(1)`コマンドと同じ慣習）。
-`-q`を付けるとこのログは抑制されるが、終了コードは変わらない。
+With `-t 1s` given, the guest is reliably force-killed after one second,
+even though it checks nothing at all. The exit code is `124` (the same
+convention as Unix's `timeout(1)` command). Adding `-q` suppresses this
+log line, but the exit code doesn't change.
 
-信頼できないゲストを動かすサンドボックスにとって、「ゲストが協力的で
-なくても止められる」という保証は重要な性質である。
+For a sandbox running an untrusted guest, the guarantee that "it can be
+stopped even if the guest doesn't cooperate" is an important property.
 
 ---
-[← 前: 10. イベントの種類を見分ける](10-telling-events-apart.md) | [目次](README.md) | [次: 12. メモリに上限をかける →](12-capping-memory.md)
+[← Previous: 10. Telling Events Apart](10-telling-events-apart.md) | [Index](README.md) | [Next: 12. Capping Memory →](12-capping-memory.md)

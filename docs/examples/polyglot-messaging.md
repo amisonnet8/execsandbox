@@ -1,33 +1,36 @@
-# polyglot-messaging — TinyGoとRustの相互接続
+日本語版: [polyglot-messaging_ja.md](polyglot-messaging_ja.md)
 
-ExecSandboxのWASM ABI（仕様書§5）は言語非依存であることを謳っている。
-実際に**TinyGo版ゲストとRust版ゲストを、コードを一切変更せずに相互接続**
-できることを両方向で確認する。使うのは
-[`sandbox-messaging.md`](sandbox-messaging.md)と同じ`sender`/`receiver`の
-組み合わせだが、片方をTinyGo版、もう片方をRust版に差し替える。
+# polyglot-messaging — interconnecting TinyGo and Rust
 
-ソース: [`execsandbox-sdk`の`go/examples/{sender,receiver}`](https://github.com/amisonnet8/execsandbox-sdk/tree/main/go/examples)・
+ExecSandbox's WASM ABI (spec §5) claims to be language-agnostic. We
+confirm this in both directions, **connecting a TinyGo guest and a Rust
+guest with zero code changes.** It uses the same `sender`/`receiver` pair
+as [`sandbox-messaging.md`](sandbox-messaging.md), but swaps one side for
+its Rust version.
+
+Source: [`execsandbox-sdk`'s `go/examples/{sender,receiver}`](https://github.com/amisonnet8/execsandbox-sdk/tree/main/go/examples) ·
 [`rust/execsandbox/examples/{sender,receiver}.rs`](https://github.com/amisonnet8/execsandbox-sdk/tree/main/rust/execsandbox/examples)
 
-## ビルド
+## Build
 
 ```
-$ tinygo build -target=wasip1 -o go-sender.wasm .       # go/examples/sender/
-$ tinygo build -target=wasip1 -o go-receiver.wasm .     # go/examples/receiver/
-$ cargo build --target wasm32-wasip1 --release --examples  # rust/execsandbox/
+$ tinygo build -target=wasip1 -o go-sender.wasm .       # in go/examples/sender/
+$ tinygo build -target=wasip1 -o go-receiver.wasm .     # in go/examples/receiver/
+$ cargo build --target wasm32-wasip1 --release --examples  # in rust/execsandbox/
 ```
 
-Rust側は`cargo build --examples`で`target/wasm32-wasip1/release/examples/
-{sender,receiver}.wasm`が生成される。4つとも`execsandbox-build`で埋め込む。
+On the Rust side, `cargo build --examples` produces `target/wasm32-wasip1/
+release/examples/{sender,receiver}.wasm`. Embed all four with
+`execsandbox-build`.
 
 ```
 $ execsandbox-build -o nodeA-go go-sender.wasm
 $ execsandbox-build -o nodeB-go go-receiver.wasm
-$ execsandbox-build -o nodeA-rust sender.wasm      # Rust版
-$ execsandbox-build -o nodeB-rust receiver.wasm    # Rust版
+$ execsandbox-build -o nodeA-rust sender.wasm      # Rust version
+$ execsandbox-build -o nodeB-rust receiver.wasm    # Rust version
 ```
 
-## 実行: TinyGo送信 → Rust受信
+## Run: TinyGo sends → Rust receives
 
 ```
 $ ./nodeB-rust -n nodeB -s out &
@@ -36,7 +39,7 @@ $ wait
 kind=0 data=hello from execsandbox-sdk
 ```
 
-## 実行: Rust送信 → TinyGo受信
+## Run: Rust sends → TinyGo receives
 
 ```
 $ ./nodeB-go -n nodeB -s out &
@@ -45,17 +48,19 @@ $ wait
 kind=0 data=hello from execsandbox-sdk
 ```
 
-## 解説
+## Discussion
 
-- **どちらの組み合わせも、同じ`nodeB`（受信側）のコードを一切変更せず
-  動く。** 送信側がTinyGoかRustかを、受信側は区別できないし気にしない
-  ——ExecSandboxのホストにとって両者は同じWASMモジュールでしかなく、
-  「バッファはゲスト側で確保する」「メタデータは8バイト固定レイアウト」
-  というABIの取り決め（`.claude/rules/abi-compatibility.md`）だけで
-  相互運用性が成立している。
-- TinyGo（GCあり）とRust（GCなし、バッファはスタック/ヒープを直接
-  管理）という対照的なメモリモデルの2言語で成立することが、ABIが特定の
-  言語ランタイムに依存していないことの実証になっている。
-- 3言語目のSDKを書く場合も、`send`/`recv`/`conn_write`/`max_frame`の4関数を
-  正しく`import`し、[仕様書§5](../spec/execsandbox_spec_ja.md)のレイアウトに
-  従いさえすれば、この2つとそのまま相互接続できるはずである。
+- **Both combinations work with the exact same `nodeB` (receiver) code,
+  unmodified.** The receiver neither can nor needs to tell whether the
+  sender is TinyGo or Rust — to the ExecSandbox host, both are nothing more
+  than a WASM module, and interoperability is achieved purely through the
+  ABI's contract (`.claude/rules/abi-compatibility.md`): "the buffer is
+  allocated on the guest side," "metadata is a fixed 8-byte layout."
+- That this holds across two languages with starkly different memory
+  models — TinyGo (with a GC) and Rust (no GC, managing buffers directly on
+  the stack/heap) — demonstrates that the ABI doesn't depend on any
+  particular language runtime.
+- Writing a third-language SDK should be able to interconnect with these
+  two as-is, as long as it correctly `import`s the four functions
+  `send`/`recv`/`conn_write`/`max_frame` and follows the layout in
+  [spec §5](../spec/execsandbox_spec.md).

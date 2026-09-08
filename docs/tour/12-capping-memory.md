@@ -1,8 +1,11 @@
-# 12. メモリに上限をかける
+日本語版: [12-capping-memory_ja.md](12-capping-memory_ja.md)
 
-`-m/--mem-limit`は、ゲストのWASM線形メモリの上限を決める。以下のゲストは
-1MiBずつスライスを確保し続け、確保できた分だけ手元に保持する（GCで回収
-されて上限に達しないという事故を防ぐため）。
+# 12. Capping Memory
+
+`-m/--mem-limit` sets the ceiling on the guest's WASM linear memory. The
+guest below keeps allocating slices 1MiB at a time, holding on to
+everything it allocates (to keep the GC from reclaiming them and never
+hitting the limit).
 
 ```
 $ tinygo build -target=wasip1 -o mem-limit.wasm .
@@ -15,11 +18,12 @@ fatal error: out of memory
 execsandbox: run WASM module: module[main] function[_start] failed: wasm error: unreachable
 ```
 
-`-m 16M`でも12MiBあたりで尽きるのは、TinyGoのランタイム自体やGCの
-メタデータが線形メモリの一部を既に使っているため。**ホストのプロセス
-自体はクラッシュせず、ゲストの異常終了として扱われる**（終了コード1、
-`execsandbox:`接頭辞のログ）——11章の`-t`と同じく、暴走したゲストが
-ホスト全体を道連れにしないという保証の一種である。
+It runs out around 12MiB even with `-m 16M`, because TinyGo's own runtime
+and the GC's metadata already occupy part of linear memory. **The host
+process itself doesn't crash; this is treated as an abnormal exit of the
+guest** (exit code 1, an `execsandbox:`-prefixed log line) — like `-t` in
+chapter 11, this is one form of the guarantee that a runaway guest never
+takes the whole host down with it.
 
 ---
-[← 前: 11. 暴走を止める](11-stopping-a-runaway-guest.md) | [目次](README.md) | [次: 13. ファイルを見せる →](13-exposing-files.md)
+[← Previous: 11. Stopping a Runaway Guest](11-stopping-a-runaway-guest.md) | [Index](README.md) | [Next: 13. Exposing Files →](13-exposing-files.md)
