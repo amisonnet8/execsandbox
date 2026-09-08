@@ -37,6 +37,7 @@ sha256sum -c execsandbox-build_*.sha256
   実行ファイルの起動オプション一覧
 - [`docs/usage/execsandbox-build.md`](docs/usage/execsandbox-build.md) —
   ビルダーの使い方
+- [`docs/examples/`](docs/examples/) — 実例集（動くコードと実際の出力）
 - [`docs/spec/execsandbox_spec_ja.md`](docs/spec/execsandbox_spec_ja.md) —
   仕様書（設計判断の理由まで含む）
 

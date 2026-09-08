@@ -341,6 +341,54 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 
 ## 現在地
 
+**`docs/examples/`（実例集）を新設した（2026-09-08）。** フェーズ①〜④
+すべて完了済み、姉妹リポジトリ`execsandbox-sdk`（TinyGo版・Rust版）も実装・
+CI green・E2E確認まで一段落したことを受け、`.claude/rules/
+directory-structure.md`が定める作成タイミング（`docs/examples/`はフェーズ③
+完了後、`docs/tour/`は全フェーズ完了後）を両方満たしたためユーザーに相談し、
+`docs/examples/`→`docs/tour/`の順で進めることに合意した。今回は
+`docs/examples/`のみ。
+
+- `docs/examples/README.md`（索引）と5本の実例
+  （`hello-wasi.md`・`sandbox-messaging.md`・`external-connection.md`・
+  `policy-and-limits.md`・`polyglot-messaging.md`）を新設。すべて実際に
+  ビルド・スタンプ・実行して出力を実測した上で記載した（このセッションに
+  TinyGo 0.42.0とRust stable+`wasm32-wasip1`ターゲットを一時導入した——
+  `execsandbox-sdk/.devcontainer/`と同じ手順。本体側の`devcontainer.json`
+  自体は変更していないため、次回このdevcontainerを再構築すると消える。
+  TinyGoが継続的に必要になった場合は`.claude/rules/testing.md`の
+  「現時点のツールチェーン方針」の見直しを検討すること）。
+- `hello-wasi`・`policy-and-limits`の4シナリオ（ファイルアクセス・メモリ
+  上限・タイムアウト・乱数時刻の遮断）はSDKを使わない新規のTinyGoゲストを
+  `docs/examples/src/`に書き下ろした。`sandbox-messaging`・
+  `external-connection`・`polyglot-messaging`は`execsandbox-sdk`側の既存
+  examples（`go/examples/{sender,receiver,echo}`・`rust/execsandbox/
+  examples/{sender,receiver}.rs`）をそのまま使い、本リポジトリにコードを
+  複製していない。
+- **重要な発見**: `-x random`はホストのABI境界（`random_get`）では確実に
+  遮断できるが、TinyGoの`crypto/rand`（wasip1ターゲット）は`random_get`を
+  直接呼ばず、戻り値を持たないlibc関数`arc4random_buf`を経由するため、
+  エラーがゲストに伝わらず「常に同じ固定値（実測では`117`）を返す」という
+  形で観測される（`docs/examples/policy-and-limits.md`に実測込みで記載）。
+  ExecSandbox本体のバグではなくゲスト言語のlibc実装に起因する挙動。
+- 副産物として`docs/spec/sdk_binding_ja.md`（SDKバインディングの暫定設計
+  文書）を削除した。当初計画は`execsandbox-sdk`への移設だったが、同リポジトリの
+  各パッケージREADMEが実測ベースの後継として既に十分な内容を持ち、暫定文書の
+  想定（`RecvTimeout`/`SendAll`等）は実装済みAPIと差分があったため、移設せず
+  削除するとユーザーが判断した（詳細は上記「保留事項」、経緯は
+  `.claude/rules/directory-structure.md`に記載）。
+- `README.md`の「ドキュメント」節に`docs/examples/`へのリンクを追加した。
+- **実際の動作確認**: 5本すべてを実機でビルド・スタンプ・実行し、`.md`内の
+  コマンド出力はすべて実測値。`make check`（`go vet`・`go test`・
+  `gofmt -l`）はexamples追加後もgreenのまま（`docs/examples/src/`配下は
+  独立した`go.mod`を持つため本体のモジュールツリーに含まれない）。
+
+次は`docs/tour/`（入門ガイド）だが、着手時期は改めて相談する。
+
+---
+
+以下はフェーズ④完了時点の記録。
+
 **フェーズ④（ビルダーとリリース）は完了した。ExecSandboxの4フェーズすべてが
 完了し、GitHub Releasesでリリースできる状態になった。**
 
@@ -1037,15 +1085,18 @@ green）。次はフェーズ②（本体の作り込み：ポリシー適用・
   `go build ./...`のみ（`cmd/execsandbox`等が増えたら実体を伴う）。
   `.claude/settings.json`のビルド自動フックはまだ設定していない
   （実装がある程度進んでから提案する、`CLAUDE.md`参照）。
-- **`execsandbox-sdk` リポジトリの立ち上げ時期** — **未確定のまま（判断待ち）。**
-  フェーズ①〜④がすべて完了し、ABIも仕様書§7.1の全CLIオプションも安定した
-  ため、「①の直後か②③と並行か」という当初の論点は解消された
-  （本体側は完成しているため、SDK側が本体の未実装機能をラップできない期間は
-  もう生じない）。立ち上げ時期そのものはユーザーの判断を仰ぐ。
-  **立ち上げ時には `docs/spec/sdk_binding_ja.md` をそちらへ移設し、本リポジトリ
-  からは削除すること**（`.claude/rules/directory-structure.md`）。SDKリポジトリの
-  Description/Topicsは`.claude/rules/distribution.md`に暫定案を置いてあるので、
-  実装する言語が確定した時点で見直すこと。
+- **`execsandbox-sdk` リポジトリの立ち上げ** — **解決済み（2026-09-08）。**
+  別リポジトリ `execsandbox-sdk` としてTinyGo版・Rust版とも実装・単体テスト・
+  examples・本体を使ったE2E・CIまで完了した（詳細は同リポジトリの`PLAN.md`
+  参照）。これに伴い `docs/spec/sdk_binding_ja.md`（暫定設計文書）は
+  **移設せず削除した**。実装後のSDK APIは同文書の想定と差分があり
+  （`Recv`/`recv`はブロッキング版・タイムアウト版を1関数に統合、`SendAll`は
+  未実装、`Kind`定数名を変更 等）、`execsandbox-sdk`側の各パッケージREADME
+  （`go/execsandbox/README.md`・`rust/execsandbox/README.md`）が実測ベースの
+  後継として十分な内容を備えていたため（`.claude/rules/directory-structure.md`
+  に判断の経緯を記載）。SDKリポジトリのDescription/Topicsは
+  `.claude/rules/distribution.md`の暫定案から見直しが必要かどうか、別途判断
+  すること。
 - **検証用WASMモジュールの管理方法** — **Step 1で決定済み。** 手書きWATを
   `wat2wasm`でコンパイルし、`.wat`ソースと`.wasm`成果物を両方コミットする
   （`.claude/rules/testing.md`「現時点のツールチェーン方針」）。`.wat`編集後は
