@@ -125,7 +125,7 @@ GitHubのDescriptionとTopicsは以下で確定している。**利用者向け�
 
 ```
 execsandbox  wasm  webassembly  wazero  wasi  sandbox  actor-model
-ipc  unix-socket  single-binary  go  golang  runtime  security
+ipc  unix-socket  single-binary  go  golang  standalone  security
 ```
 
 14個（GitHubの上限は20）。選定の考え方：
@@ -134,6 +134,13 @@ ipc  unix-socket  single-binary  go  golang  runtime  security
   `execsandbox-sdk`を串刺しできる唯一のタグであり、2リポジトリ構成では重要。
 - `wasm`と`webassembly`は検索者によって使う語が異なるため両方入れる。
 - `wazero`は該当リポジトリ数が少なく、そこを見ている層に確実に当たる。
+- **`single-binary`と`standalone`はセットで残す。** `single-binary`は個々の
+  成果物の性質（1ファイルに収まる）を指し、`standalone`は「別途ランタイムの
+  用意が要らない」という体験を指す。両者は矛盾しない——ExecSandboxは複数の
+  インスタンスを組み合わせてシステムを構成する前提（`actor-model`・`ipc`）
+  であり、「システム全体が1個」という意味には決して読ませたくない。
+  当初あった`runtime`は「これ自体がランタイムである」とも読め、伝えたい
+  「ランタイム不要」という体験と紛らわしいため`standalone`に差し替えた。
 - `erlang`は入れない。着想元ではあるが、Erlang関連を探している層には無関係で
   ノイズになる。
 - `mailbox`は入れない。GitHubのTopicとしては電子メール関連が大半を占めており、
