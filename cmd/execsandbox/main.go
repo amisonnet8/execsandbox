@@ -1,17 +1,17 @@
 // cmd/execsandbox は、ビルダーが埋め込むベースバイナリ本体。
 //
-// フェーズ②Step7時点で、仕様書§7.1の全オプションのパース・検証・ヘルプ・
-// バージョン表示に加え、-q/--quietによるホスト側ログの抑制、WASI組み込みと
-// -e/-s/"--"以降の引数・-v（ファイルシステム）・-m（メモリ上限）・
-// -x（乱数・時刻）・-t（タイムアウト）の配線を実装した。仕様書§7.1の
-// 全オプションが実際に配線済み（-lは仕様書にあるがフェーズ③スコープのため
-// フラグ自体を未定義のまま）。
+// フェーズ②で仕様書§7.1の全オプション（-lを除く）のパース・検証・wazeroへの
+// 配線が完了した。フェーズ③Step3で-l/--listenによる外部接続の待ち受けを
+// 追加した。確立・データ・切断の各イベントはsandbox.ConnTable経由で
+// メールボックスへ合流する（仕様書§4.3）。conn_writeホスト関数の登録は
+// Step4で行う。
 package main
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/tetratelabs/wazero"
@@ -103,6 +103,25 @@ func run(opts *options) (exitCode int, err error) {
 
 	destTable := sandbox.NewDestTable(opts.dest)
 	defer destTable.Close()
+
+	var connTable *sandbox.ConnTable
+	if opts.listen != "" {
+		network, address, err := sandbox.ParseListenAddress(opts.listen)
+		if err != nil {
+			// options.goのvalidate()で既に検証済みのため、通常はここに
+			// 到達しない。フォーマットの二重管理を避けるためあえて再度
+			// 呼んでおり、変化があった場合の防御として残す。
+			return 1, fmt.Errorf("invalid -l/--listen value: %w", err)
+		}
+		connListener, err := net.Listen(network, address)
+		if err != nil {
+			return 1, fmt.Errorf("listen for external connections on %s: %w", opts.listen, err)
+		}
+		defer connListener.Close()
+		connTable = sandbox.NewConnTable()
+		defer connTable.Close()
+		go connTable.Serve(connListener, mailbox, int(opts.maxFrame))
+	}
 
 	policy := sandbox.Policy{
 		Env:              toSandboxEnv(opts.env),
