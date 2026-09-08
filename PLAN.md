@@ -98,9 +98,116 @@ TinyGo向けSDKに加えて**他言語のSDKを最低1つ**実装し、ABIが本
 **フェーズ①（ミニマム実装）は完了した。** 次はフェーズ②
 （本体の作り込み：ポリシー適用・CLI・バックプレッシャー・ログ）に進む。
 
+## フェーズ②のステップ
+
+本体の作り込みであるフェーズ②は、以下の8ステップで進める。`-l/--listen`
+（外部接続）はフェーズ③スコープのため今回は実装しない。
+
+**最重要の発見**：wazeroの乱数・時刻の既定値は「サンドボックス寄り」（偽の
+時刻、決定的な乱数）だが、ExecSandboxの仕様（§8）は逆に「乱数・時刻は既定で
+許可」としている。何もしなければ仕様と正反対の状態が黙って動くため、Step 6で
+専用に扱う。
+
+**事前確認済みの設計判断**：
+- `-t`の期間書式はGo標準の`time.ParseDuration`互換文字列（`"30s"`、`"5m"`等）。
+- WASI経由のポリシー検証用テストモジュールは、引き続き手書きWATで作成する
+  （TinyGoは導入しない）。
+- `-q`は起動エラーを抑制しない。`--`以降の引数にはargv[0]相当を補う。
+  終了コード体系は仕様書を変更せず実装コメントに留める。
+
+1. **Step 1: `-t`中断機構のスパイク検証【意思決定ゲート】**
+   - PLAN.md保留事項「`recv`でブロック中のゲストを、`-t`の強制終了時に
+     どう安全に中断するか」を最初に実測で確定させる。
+   - `testdata/modules/blocker.wat`（`_start`が`recv(timeout_ms=-1)`を
+     呼び続ける、ホスト関数内ブロックの経路）と`spin_forever.wat`
+     （`(loop (br 0))`のみ、純WASMループの経路）を用意し、
+     `wazero.NewRuntimeConfig().WithCloseOnContextDone(true)`＋
+     `context.WithTimeout`で両経路とも期限内に`*sys.ExitError`
+     （`ExitCodeDeadlineExceeded`）で終了することを確認する。
+   - **ゲート**：不成立ならHostConfigに中断用チャネルを足すプランBへ切り替え、
+     その旨をここに記録して報告する。
+2. **Step 2: CLI足場（全オプションのパースとヘルプ/バージョン）**
+   - `cmd/execsandbox/options.go`を新設し`parseArgs`をmainから切り出す。
+   - `-e`/`-v`/`-s`/`-x`/`-m`/`-f`/`-t`用の`flag.Value`実装、§7.3準拠の
+     サイズパーサ、手書きの`writeUsage`。
+   - `-h`/`-V`（stdoutへexit 0）、パースエラーは`execsandbox:`接頭辞＋
+     英語でstderrへexit 2。`-d`の重複番号指定はエラーにする。
+3. **Step 3: ログの統一とバックプレッシャー（`-q`/`-b`/`-f`）の実配線**
+   - `sandbox/log.go`の`Logger`型に`execsandbox:`接頭辞・`-q`抑制を集約し、
+     `mailbox.go`/`host.go`/`listener.go`を置き換える。
+   - `-b`/`-f`をハードコード定数から実際のオプション値へ配線。`-f`は
+     `math.MaxInt32`以下に制限（ABIの`max_frame()`がi32のため）。
+4. **Step 4: WASI組み込みとModuleConfig土台（`-s`/`-e`/`--`引数）**
+   - `wasi_snapshot_preview1.Instantiate`を追加（フェーズ①では未登録）。
+   - `sandbox/policy.go`を新設し、`-s`のstdio配線、`--`以降の
+     `WithArgs("execsandbox", ...)`を実装。
+   - `testdata/modules/wasi_probe.wat`（環境変数・引数をstdoutへ書き出す）で
+     検証。**このステップ完了時に既存のE2E・単体テストを全て再実行し、
+     WASI登録が既存モジュールへ影響しないことを確認する。**
+5. **Step 5: ファイルシステム（`-v`）とメモリ上限（`-m`）**
+   - `-v`の`HOST:GUEST[:ro]`パースはWindowsドライブレターと衝突しないよう
+     右から解釈し、GOOS非依存の純関数にする（`address.go`の
+     `resolveSocketPath(goos, ...)`と同じ手口）。
+   - `-m`はバイト→ページ変換し65536ページ（4GiB）超はエラー（超えると
+     `WithMemoryLimitPages`がpanicするため）。`WithMemoryCapacityFromMax`は
+     呼ばない（先行確保を避ける）。
+   - `testdata/modules/mem_hog.wat`（`memory.grow`の失敗をもって上限を確認）。
+6. **Step 6: 乱数・時刻（`-x/--deny`）【wazeroの既定が仕様と逆転する箇所】**
+   - `-x`未指定時は明示的に`WithRandSource(crypto/rand.Reader)`＋
+     `WithSysWalltime()`＋`WithSysNanotime()`＋`WithSysNanosleep()`を呼ぶ
+     （nanotimeだけ有効化するとsleepがビジーループになる）。
+   - `-x random`は常にエラーを返す`io.Reader`（wazeroの決定的乱数を
+     流用しない）。`-x time`はWASIの`clock_time_get`にエラー経路がないため
+     「取得を遮断」ではなく「wazeroの既定＝偽の単調時計のまま」が実効的な
+     意味になる（`docs/usage`に明記する）。
+   - **回帰防止の要**：既定（`-x`なし）で`clock_time_get`が`time.Now()`と
+     数秒以内に一致すること、`random_get`が実行のたびに異なるバイト列を
+     返すことを自動テストで固定する。
+7. **Step 7: `-t/--timeout`の本実装と終了コード整理**
+   - Step 1で確定した`WithCloseOnContextDone`を`-t`指定時のみ有効化し、
+     ゲスト実行にのみ`context.WithTimeout`を適用する。
+   - `*sys.ExitError`を`errors.As`で判定し、`ExitCodeDeadlineExceeded`は
+     専用ログ＋専用終了コード、それ以外はゲストの終了コードをそのまま
+     プロセスの終了コードにする。
+   - 本Stepの完了をもって、保留事項「recvのタイムアウト実装方式」を解決済みに
+     更新する。
+8. **Step 8: E2E拡張・ドキュメント追随・仕上げ**
+   - `tests/e2e_policy.sh`・`tests/e2e_timeout.sh`を新設し
+     `.github/workflows/test.yml`に追加。Windows(Git Bash/MSYS)のパス変換の
+     罠に対処。
+   - `docs/usage/execsandbox.md`を実測値へ差し替え（`docs/spec/`は変更しない）。
+   - **`.claude/rules/wazero-quirks.md`の新設を提案する**（walltime/nanotime/
+     randの既定逆転、`WithMemoryLimitPages`のpanic条件等を収録）。
+   - 「現在地」をフェーズ②完了へ更新し、完了判定リストを記載する。
+
+**検証方針（共通）**：各Stepとも`go build ./...`→`go vet ./...`→
+`gofmt -l .`→単体テスト→実際にビルド・スタンプした実行ファイルでの目視確認、
+を最小単位とする。`make check`/`make race`/`make test`をStep 4完了時・
+Step 8完了時に通す。コミットは各Step完了時に行う。pushは行わない
+（GitHub操作はユーザーが行う）。
+
 ## 現在地
 
-**フェーズ①完了 → フェーズ②（未着手）**
+**フェーズ②/ Step 1 完了 → Step 2（未着手）**
+
+Step 1（`-t`中断機構のスパイク検証）を完了した。**ゲート合格、プランB不要。**
+
+- `testdata/modules/blocker.wat`（`_start`が`recv(timeout_ms=-1)`を無限に
+  呼び続ける、ホスト関数内ブロックの経路）と`spin_forever.wat`
+  （`(loop (br 0))`のみ、純WASMループの経路）を追加。
+- `sandbox/timeout_spike_test.go`で、`wazero.NewRuntimeConfig().
+  WithCloseOnContextDone(true)`＋`context.WithTimeout(200ms)`の組み合わせで
+  両経路とも期限通り（実測200ms前後）に`*sys.ExitError`
+  （`ExitCode() == sys.ExitCodeDeadlineExceeded`）で終了することを確認した。
+  `start.Call(ctx)`は`InstantiateModule`に渡したctxをそのまま使う
+  （`runtime.go`で確認済み）ため、`InstantiateWithConfig`に
+  `context.WithTimeout`由来のctxを渡すだけで`_start`の自動実行にも効く。
+- これにより、Step 7で`-t`を実装する際は`RuntimeConfig.
+  WithCloseOnContextDone(opts.timeout > 0)`＋ゲスト実行にのみ
+  `context.WithTimeout(ctx, opts.timeout)`を適用する方針で進めてよいことが
+  確定した。`sandbox/host.go`の`recvFunc`側の追加対応（中断用チャネル等）は
+  不要。
+- `make check`・`make race`で既存テストに影響がないことを確認済み。
 
 Step 5（疎通確認とCI）を実装しpushしたところ、`test(macos-latest)`・
 `test(windows-latest)`・`race(macos-latest)`がFAILした。いずれも
