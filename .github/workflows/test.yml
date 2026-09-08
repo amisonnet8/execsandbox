@@ -46,6 +46,12 @@ jobs:
         shell: bash
         run: bash tests/e2e_timeout.sh
 
+      # フェーズ②Step 8: -s/-e/"--"引数・-q・--help/-V・不正オプションを
+      # 3OSで確認する。
+      - name: e2e (policy options and CLI basics)
+        shell: bash
+        run: bash tests/e2e_policy.sh
+
   # -raceはcgoを要求するため本体の「pure Go・CGO_ENABLED=0」方針とは別枠で扱う
   # （.claude/rules/testing.md「-raceの運用方針」）。windows-latestにはCコンパイラが
   # 標準で入っていないため対象から外す。

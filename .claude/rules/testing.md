@@ -129,6 +129,19 @@ ExecDBがCI上でのみ顕在化した問題を踏んでいる。手元Linuxで�
   `ubuntu-latest`でも再現せず、**`macos-latest`でのみ顕在化した**。AF_UNIXの
   ソケットファイルを作るテストは`t.TempDir()`に頼らず、`/tmp`直下に短い名前で
   明示的に作ること。
+- **Git Bash/MSYS（`windows-latest`のシェル）は、コマンドライン引数に現れる
+  `/`始まりの文字列を自動的にWindowsパスへ変換する。** 例えば
+  `execsandbox -v /data:/data`をGit Bash経由で実行すると、シェルが
+  `/data`を`C:/Program Files/Git/data`のような実在しないパスへ書き換えて
+  から渡してしまう（`execsandbox`自体が受け取る文字列が既に化けている）。
+  ExecSandboxの`-v`はゲスト側パスも`/`始まりを要求する（`.claude/rules/`
+  の命名規則ではなく`cmd/execsandbox/options.go`の`parseVolume`の制約）ため、
+  この変換が**ホスト側パス・ゲスト側パスの両方**で問題になりうる。
+  対策は`MSYS_NO_PATHCONV=1`を該当コマンドの実行時にのみ環境変数として
+  付与すること（シェルスクリプト全体に効かせると副作用が読みにくいため、
+  `-v`を使う行にだけ局所的に付ける）。フェーズ②Step 8時点では`-v`を使う
+  E2Eスクリプトをまだ書いていないため未遭遇だが、`docs/examples/`や
+  `tests/`に`-v`の実例を足す際は最初からこれを踏まえること。
 
 ## `-race` の運用方針
 
