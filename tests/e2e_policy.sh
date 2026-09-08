@@ -6,6 +6,16 @@
 # tests/e2e_basic.sh、-tの強制終了は tests/e2e_timeout.sh が担当）。
 set -euo pipefail
 
+# wasi_probe.wasmの"_start"は、-x/--denyの実機確認用にrandom_get/
+# clock_time_getの生バイト(乱数・時刻)を無条件にstdoutの末尾へ書き出す
+# (testdata/modules/wasi_probe.wat)。macOSのtr/grep(BSD版)はロケールに
+# 応じて入力をUTF-8として妥当性検証するため、この非ASCIIな乱数バイト列に
+# 遭遇すると"Illegal byte sequence"で落ちる(GNU版のtr/grepでは起きない
+# 差異。手元Linuxでは再現せずmacos-latestランナーでのみ顕在化した)。
+# LC_ALL=Cでバイト列をそのまま扱わせることで回避する
+# (.claude/rules/testing.md「クロスプラットフォームCIの落とし穴」参照)。
+export LC_ALL=C
+
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 

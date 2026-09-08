@@ -142,6 +142,30 @@ ExecDBがCI上でのみ顕在化した問題を踏んでいる。手元Linuxで�
   `-v`を使う行にだけ局所的に付ける）。フェーズ②Step 8時点では`-v`を使う
   E2Eスクリプトをまだ書いていないため未遭遇だが、`docs/examples/`や
   `tests/`に`-v`の実例を足す際は最初からこれを踏まえること。
+- **macOSの`tr`・`grep`（BSD版）は、ロケールに応じて入力をUTF-8として
+  妥当性検証し、非ASCIIなバイト列に遭遇すると`Illegal byte sequence`で
+  落ちる。** GNU版（Linux）はこの検証をしない、またはより寛容であり、
+  手元Linuxでは再現しない。`tests/e2e_policy.sh`が`wasi_probe.wasm`の
+  stdout（`-x/--deny`確認用に`random_get`の生の乱数バイトを含む）を
+  `tr '\0' '\n'`へパイプする箇所で`macos-latest`のみ失敗した
+  （フェーズ③Step5のCIで発覚）。**ゲストの出力が非ASCIIバイトを含みうる
+  場合、パイプする前段のスクリプトで`export LC_ALL=C`しておくこと。**
+  C（POSIX）ロケールでは文字列を単なるバイト列として扱うため、
+  エンコーディング妥当性の検証自体が働かなくなる。
+- **Windowsでは、`kill`でプロセスを終了させた直後に、その実行ファイルを
+  `rm`で削除しようとすると`Device or resource busy`になることがある。**
+  `kill`はシグナルを送るだけで終了を待たないため、OSがプロセスを実際に
+  終了させ実行ファイルのメモリマップドハンドルを解放し終える前に
+  `rm -rf`が走ってしまうタイミング依存の問題。手元Linux・`macos-latest`
+  では再現せず、`windows-latest`でのみ顕在化した（`tests/e2e_conn.sh`が
+  `-l`で常駐させたサンドボックスを`cleanup()`のtrapで`kill`した直後に
+  `rm -rf "$WORKDIR"`していた箇所。フェーズ③Step5のCIで発覚）。
+  **`kill`の直後に`wait "$pid"`を挟み、実際にプロセスが終了する
+  （reapされる）のを待ってから削除すること。** E2Eスクリプトが常駐
+  プロセスを起動する場合、正常系の途中で自発的な終了を待つ処理
+  （`wait`）が既にあっても、失敗時にtrap経由で`cleanup()`が呼ばれる
+  経路では効かないため、`cleanup()`内の`kill`にも同様に`wait`を
+  対にして付けること。
 
 ## `-race` の運用方針
 

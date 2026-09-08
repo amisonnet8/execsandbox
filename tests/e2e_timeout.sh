@@ -30,6 +30,12 @@ cleanup() {
   if [ "${#PIDS[@]}" -gt 0 ]; then
     for pid in "${PIDS[@]}"; do
       kill "$pid" >/dev/null 2>&1 || true
+      # killは終了を待たない。Windowsでは、プロセスが実際に終了し実行
+      # ファイルのハンドルを解放する前にrm -rfすると"Device or resource
+      # busy"になりうる(tests/e2e_conn.shで顕在化。正常系は既にwaitで
+      # nodeBの終了を待っているため通らないが、失敗系の後始末としても
+      # 安全にしておく。.claude/rules/testing.md参照)。
+      wait "$pid" >/dev/null 2>&1 || true
     done
   fi
   rm -rf "$WORKDIR"

@@ -16,6 +16,12 @@ cleanup() {
   if [ "${#PIDS[@]}" -gt 0 ]; then
     for pid in "${PIDS[@]}"; do
       kill "$pid" >/dev/null 2>&1 || true
+      # killはシグナルを送るだけで終了を待たない。Windowsでは、プロセスが
+      # 実際に終了し実行ファイルのハンドルを解放するまでの間に続けて
+      # rm -rfすると"Device or resource busy"になる(windows-latestランナーで
+      # 顕在化。手元Linux・macOSでは再現しない)。waitで実際の終了を
+      # 待ってからディレクトリを削除する(.claude/rules/testing.md参照)。
+      wait "$pid" >/dev/null 2>&1 || true
     done
   fi
   rm -rf "$WORKDIR"
