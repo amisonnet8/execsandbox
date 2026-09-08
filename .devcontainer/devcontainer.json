@@ -1,0 +1,27 @@
+{
+  "name": "execsandbox",
+  "image": "mcr.microsoft.com/devcontainers/go:1.26-bookworm",
+  "features": {
+    "ghcr.io/dhoeric/features/trivy:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.Go",
+        "ms-vscode.makefile-tools",
+        "github.vscode-github-actions",
+        "dtsvet.vscode-wasm"
+      ],
+      "settings": {
+        "go.useLanguageServer": true,
+        "editor.formatOnSave": true,
+        "go.formatTool": "goimports"
+      }
+    }
+  },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y make wabt && go install golang.org/x/tools/gopls@latest && go install golang.org/x/tools/cmd/goimports@latest",
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "CGO_ENABLED": "0"
+  }
+}
