@@ -341,8 +341,94 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 
 ## 現在地
 
-**フェーズ③（外部接続）は完了した。フェーズ④（ビルダーとリリース）に
-着手する。** Step 1（ビルダーCLI足場 + クロスビルド土台）から開始する。
+**フェーズ④（ビルダーとリリース）は完了した。ExecSandboxの4フェーズすべてが
+完了し、GitHub Releasesでリリースできる状態になった。**
+
+Step 1〜6を完了した。
+
+- **Step 1（ビルダーCLI足場 + クロスビルド土台）**: `cmd/execsandbox-build`
+  （新設）に`-o/--output`（必須）・`--target GOOS/GOARCH`（仕様書§6.3の6環境
+  のみ許可、省略時は`runtime.GOOS`/`GOARCH`から自動判定）・`-h`/`-V`を実装。
+  ビルダーは仕様書§6.3により自分自身に6環境分のベースバイナリを
+  `//go:embed`で内包するため（`basebinaries.go`）、`Makefile`に`cross-base`
+  ターゲット（6環境分の`cmd/execsandbox`を`cmd/execsandbox-build/
+  basebinaries/`へクロスビルド）を新設し、`build`/`check`/`race`を依存
+  させた。埋め込み対象は配布物のためコミットせず`.gitignore`へ追加。
+  CIワークフロー（`test.yml`）は`make`を経由しない方針のため、`test`/`race`
+  両ジョブに同内容の「build base binaries」ステップを追加した。
+- **Step 2（スタンプ処理・書き込み側の実装）**: `stamp.go`（新設）で
+  フッター書き込み（読み出し側`sandbox.ExtractWASM`とは独立実装のまま、
+  `.claude/rules/directory-structure.md`）。出力に実行ビット`0o755`。
+  `--target windows`時は出力名に`.exe`を自動付与。実機で、ビルダーが
+  実際にスタンプした実行ファイルが起動しAF_UNIX経由で送受信できることを
+  確認した。
+- **Step 3（バージョン埋め込みと`-L/--print-licenses`）**: 両バイナリに
+  `var version = "dev"`（`-ldflags -X main.version=`で上書き）。**表示義務を
+  果たす主体を、ビルダーではなく生成物（`cmd/execsandbox`）側に持たせる**
+  というユーザー提案の設計を採用——第三者へ配布されるのは生成物であり、
+  配布者がビルダーを手元に持っているとは限らないため。`cmd/execsandbox/
+  licenses/`（新設）にリポジトリ直下`LICENSE`・wazero（v1.12.0）の
+  LICENSE/NOTICEを複製し`go:embed`（`..`参照不可のため複製が必要）。
+  短縮フラグは`-L`——`-V`と対になる**任意の**例外（`-p`等も選べたが、
+  情報表示系オプションの一覧性のため大文字で揃えた。`-V`は`-v`が塞がって
+  いるための**必然的な**例外であり性質が異なる）。仕様書§7.1・§10.1、
+  `.claude/rules/naming.md`を更新（ユーザー承認済み、実装時再確認なし）。
+  `licenses_test.go`でリポジトリ直下`LICENSE`・wazeroのモジュールキャッシュ
+  とのドリフトを検知するテストを追加。
+- **Step 4（Makefileの結線とビルダーのE2E確認）**: `tests/e2e_builder.sh`
+  （新設）で、自環境向け（`--target`省略）にスタンプした実行ファイルが
+  実際に送受信できること、6環境全ターゲットの生成物が「embedされた
+  ベースバイナリ＋wasm＋フッター」の結合とバイト一致することを確認。
+  `make test`を`cross-base`に依存させ、`test.yml`に3OS分のE2Eステップを
+  追加した。
+- **Step 5（リリースパイプライン）**: `.github/workflows/release.yml`
+  （新設）。`v*`タグpushをトリガーに、`check`ジョブ（gofmt/vet/unit tests、
+  `make check`相当）でゲートしてから`build`ジョブ（`ubuntu-latest`1台、
+  `CGO_ENABLED=0`）で6環境分のベースバイナリ→6環境分のビルダーを同じ
+  `-X main.version=${{ github.ref_name }}`でクロスビルドし、各アセットに
+  `sha256sum`を添付、`gh` CLI（サードパーティActions不使用）で
+  `execsandbox-build_<tag>_<goos>_<goarch>`の命名で公開する。ローカルで
+  バージョン文字列付きビルド・チェックサム生成を再現し動作を確認したが、
+  **実際のタグpush・リリース作成はこのセッションでは行っていない**
+  （本フェーズの範囲外、確認済み方針）。
+- **Step 6（README・ドキュメント仕上げ）**: `README.md`（新設）——
+  インストール（GitHub Releasesから）とクイックスタートのみに絞り、詳細は
+  `docs/`へリンク（`.claude/rules/directory-structure.md`の方針）。
+  `docs/usage/execsandbox-build.md`を実測値へ全面差し替え（実際の`--help`
+  出力、`go install`非対応の明記とその理由、`-L`による表示義務の果たし方、
+  終了コード表）。リポジトリのメタデータ（Description/Topics）は
+  `.claude/rules/distribution.md`に確定済みの文面があるが、**GitHub側の
+  設定はユーザーが行う**（案内のみ行い、実際の変更はしていない）。
+
+**実際の動作確認（フェーズ④全体）**: `go build`/`go vet`/`gofmt -l`/
+`go test`/`make check`/`make race`/`make test`（`e2e_basic`/`e2e_builder`/
+`e2e_conn`/`e2e_policy`/`e2e_timeout`の5本）すべてgreen。実機で、(1)自環境
+向けにスタンプした実行ファイルの実際の送受信、(2)`--target windows/amd64`
+での`.exe`自動付与、(3)6環境全ターゲットの生成物のバイト一致、(4)`-V`への
+バージョン文字列の反映（両バイナリ）、(5)`-L`の出力内容（MIT全文・
+Apache-2.0全文・NOTICE、計232行）を確認した。
+
+**フェーズ④完了の判定**：
+- ビルダー（`cmd/execsandbox-build`）が仕様書§6.1の全オプション
+  （`-o`/`--target`/`-h`/`-V`）を実装し、6環境分のベースバイナリを実際に
+  内包している。 ✅（Step1〜2）
+- ビルダーが生成した実行ファイルが、実際に起動しWASMを実行できる。
+  ✅（Step2、実機確認）
+- 生成物自身が表示義務を果たす手段（`-L, --print-licenses`）を持つ。
+  ✅（Step3）
+- 6環境すべてのクロスターゲット生成が、embedされたベースバイナリと
+  バイト一致する。 ✅（Step4）
+- リリースパイプラインが定義され、タグ名がビルダー・生成物双方の
+  バージョンとして一致する設計になっている。 ✅（Step5。実際のリリース
+  作成は未実施）
+- README・利用者向けドキュメントが実測値と一致している。 ✅（Step6）
+- CI（3OSマトリクス、test/race）がすべてgreen。 ✅
+
+**フェーズ④（ビルダーとリリース）は完了した。ExecSandboxの実装計画
+（①〜④）はすべて完了した。** 残る作業は、ユーザーによる実際のタグpush・
+リリース作成、リポジトリメタデータの設定、`execsandbox-sdk`リポジトリの
+立ち上げ判断など、いずれも本リポジトリでのコード実装を伴わないもの
+（下記「保留事項」参照）。
 
 ---
 
@@ -951,9 +1037,11 @@ green）。次はフェーズ②（本体の作り込み：ポリシー適用・
   `go build ./...`のみ（`cmd/execsandbox`等が増えたら実体を伴う）。
   `.claude/settings.json`のビルド自動フックはまだ設定していない
   （実装がある程度進んでから提案する、`CLAUDE.md`参照）。
-- **`execsandbox-sdk` リポジトリの立ち上げ時期** — フェーズ①完了（ABI確定）が
-  前提だが、①の直後に始めるか、②③と並行させるかは未確定。並行させる場合、
-  SDK側が本体の未実装機能（外部接続等）をラップできない期間が生じる。
+- **`execsandbox-sdk` リポジトリの立ち上げ時期** — **未確定のまま（判断待ち）。**
+  フェーズ①〜④がすべて完了し、ABIも仕様書§7.1の全CLIオプションも安定した
+  ため、「①の直後か②③と並行か」という当初の論点は解消された
+  （本体側は完成しているため、SDK側が本体の未実装機能をラップできない期間は
+  もう生じない）。立ち上げ時期そのものはユーザーの判断を仰ぐ。
   **立ち上げ時には `docs/spec/sdk_binding_ja.md` をそちらへ移設し、本リポジトリ
   からは削除すること**（`.claude/rules/directory-structure.md`）。SDKリポジトリの
   Description/Topicsは`.claude/rules/distribution.md`に暫定案を置いてあるので、
@@ -970,7 +1058,14 @@ green）。次はフェーズ②（本体の作り込み：ポリシー適用・
   `sandbox/policy.go`の`RuntimeConfig()`）とゲスト実行への
   `context.WithTimeout`の組み合わせで実現した（詳細はPLAN.md「現在地」の
   Step 7の記録を参照）。
-- **バージョン埋め込み** — ExecDBは `-ldflags -X main.version=` を使っていた。
-  ExecSandboxでは本体とビルダーの2つにバージョンがあり、さらに生成物が
-  「どのバージョンの本体でスタンプされたか」を持つ。フッターのversionフィールドと
-  どう関係づけるかをフェーズ④で整理する。
+- **バージョン埋め込み** — **解決済み（フェーズ④Step3〜5）。**
+  `cmd/execsandbox`・`cmd/execsandbox-build`とも`var version = "dev"`を持ち
+  `-ldflags -X main.version=<tag>`で上書きする（`-V`で表示）。フッターの
+  Versionフィールド（`sandbox/footer.go`のfooterVersion）とは無関係——
+  あちらは「フッター形式自体のバージョン」（現在値1、レイアウトが変わった
+  ときだけ上げる）であり、リリースのタグとは別概念（`.claude/rules/
+  stamp.md`）。公式リリース（`.github/workflows/release.yml`）では、6環境分の
+  ベースバイナリと6環境分のビルダーを同じ`-X main.version=${{
+  github.ref_name }}`で一括ビルドすることで「ビルダーのバージョン＝
+  生成物のバージョン」（仕様書§6.3）を保証している——ビルダー実行時に
+  埋め込み済みbase binaryのバージョンを動的に書き換えることはできないため。
