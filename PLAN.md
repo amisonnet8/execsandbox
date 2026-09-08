@@ -188,7 +188,44 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 
 ## 現在地
 
-**フェーズ②/ Step 4 完了 → Step 5（未着手）**
+**フェーズ②/ Step 5 完了 → Step 6（未着手）**
+
+Step 5（ファイルシステム〔`-v`〕とメモリ上限〔`-m`〕）を完了した。
+
+- `sandbox/policy.go`: `Mount{Host, Guest, ReadOnly}`を`Policy.Mounts`に追加。
+  `ModuleConfig()`は`Mounts`が空なら`WithFSConfig`を一切呼ばない（wazeroの
+  既定＝`path_open`等が`ENOSYS`になる、という遮断状態を維持）。空でなければ
+  `WithDirMount`/`WithReadOnlyDirMount`を`ReadOnly`に応じて呼び分ける。
+  `MemoryLimitPages(bytes) (uint32, error)`（バイト→64KiBページへ変換、
+  端数は切り上げ、65536ページ〔4GiB、wazeroの既定上限〕超はエラー）と
+  `Policy.RuntimeConfig() (wazero.RuntimeConfig, error)`（内部で
+  `MemoryLimitPages`を呼び`WithMemoryLimitPages`を設定）を新設。
+  `WithMemoryCapacityFromMax`は呼ばない（上限は天井であって先行確保する量
+  ではないため、確認済み方針）。
+- `main.go`: `wazero.NewRuntime(ctx)`を`policy.RuntimeConfig()`の結果を使う
+  `wazero.NewRuntimeWithConfig(ctx, rtConfig)`へ変更したため、`policy`の
+  組み立てをRuntime生成より前に移動。`opts.volumes`→`sandbox.Mount`の変換
+  （`toSandboxMounts`）、`opts.memLimit`→`Policy.MemoryLimitBytes`を追加。
+- `options.go`の`validate()`に、`-v`で指定したホストパスの存在確認
+  （`os.Stat`、`-v`のパース自体はGOOS非依存の純関数のままにするため
+  ここでは行わない）を追加。
+- `testdata/modules/mem_hog.wat`（新設）: `memory.grow`失敗まで1ページずつ
+  伸ばし続け、到達ページ数を返す。モジュール側に最大値を宣言しないため、
+  純粋に`-m`（`WithMemoryLimitPages`）の効果だけを観測できる。
+- `testdata/modules/wasi_probe.wat`を拡張し`path_open`/`fd_close`を追加。
+  `write_probe(path,data)`エクスポート（プリオープンfd=3〔wazeroの規約で
+  最初のマウントは3番、0〜2はstdio〕へ書き込みを試みる）を新設。`_start`が
+  末尾でこれを"probe.txt"に対して呼び、結果を無視する（マウントがなければ
+  黙って失敗するだけで良い、実機確認用）。
+- **実際の動作確認**: `sandbox/policy_test.go`にマウントなし/rw/roの3パターン
+  （`path_open`のerrno・ホスト側ファイルの有無を確認）、`MemoryLimitPages`の
+  境界値テーブルテスト、`RuntimeConfig`経由で`mem_hog`の`grow_until_fail`が
+  実際に指定ページ数で頭打ちになることを確認。実機では、一時ディレクトリを
+  `-v host:/data`でマウントして`probe.txt`が実際にホストへ書き込まれる
+  こと、`:ro`付きでは書き込まれないこと、`-v`なしでは何も起きないことを
+  確認した。`-m`の異常値（4GiB超）が起動前にエラーになることも確認した。
+  `go build`/`go vet`/`gofmt -l`/`go test`/`make race`/`make check`/
+  `make test`すべてgreen。
 
 Step 4（WASI組み込みとModuleConfig土台：`-s`/`-e`/`--`引数）を完了した。
 

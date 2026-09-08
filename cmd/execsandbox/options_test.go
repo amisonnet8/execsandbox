@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -267,5 +268,21 @@ func TestOptionsValidate(t *testing.T) {
 				t.Errorf("validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestOptionsValidate_volumeHostMustExist(t *testing.T) {
+	base := options{memLimit: 1, mailboxLimit: 1, maxFrame: 1}
+
+	ok := base
+	ok.volumes = []volumeMount{{Host: t.TempDir(), Guest: "/data"}}
+	if err := ok.validate(); err != nil {
+		t.Errorf("validate() with an existing host path = %v, want nil", err)
+	}
+
+	bad := base
+	bad.volumes = []volumeMount{{Host: filepath.Join(t.TempDir(), "does-not-exist"), Guest: "/data"}}
+	if err := bad.validate(); err == nil {
+		t.Error("validate() with a nonexistent host path = nil, want error")
 	}
 }

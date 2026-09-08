@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
@@ -84,6 +85,154 @@ func TestPolicy_stdinAndStderrGateSameWay(t *testing.T) {
 
 	if _, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig()); err != nil {
 		t.Fatalf("instantiate with no stdio enabled: %v", err)
+	}
+}
+
+// callWriteProbe はwasi_probe.wasmのwrite_probe(path,data)を呼ぶ。
+// path/dataはゲストの線形メモリの空き領域(20000番地以降)へ書き込んでから
+// 呼び出す。
+func callWriteProbe(t *testing.T, ctx context.Context, mod api.Module, path, data string) int32 {
+	t.Helper()
+	const pathOff, dataOff = 20000, 20100
+
+	if !mod.Memory().Write(pathOff, []byte(path)) {
+		t.Fatalf("write path into guest memory")
+	}
+	if !mod.Memory().Write(dataOff, []byte(data)) {
+		t.Fatalf("write data into guest memory")
+	}
+
+	res, err := mod.ExportedFunction("write_probe").Call(ctx,
+		uint64(pathOff), uint64(len(path)), uint64(dataOff), uint64(len(data)))
+	if err != nil {
+		t.Fatalf("call write_probe: %v", err)
+	}
+	return int32(res[0])
+}
+
+func TestPolicy_mount_none_pathOpenFails(t *testing.T) {
+	ctx, rt, wasmBytes := newWASIRuntime(t)
+
+	p := Policy{} // -v未指定：マウントなし
+	cfg := p.ModuleConfig().WithStartFunctions()
+	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, cfg)
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	if errno := callWriteProbe(t, ctx, mod, "test.txt", "hello"); errno == 0 {
+		t.Error("write_probe() = 0, want a path_open error (no mount configured, fd 3 must not exist)")
+	}
+}
+
+func TestPolicy_mount_readWrite(t *testing.T) {
+	ctx, rt, wasmBytes := newWASIRuntime(t)
+
+	dir := t.TempDir()
+	p := Policy{Mounts: []Mount{{Host: dir, Guest: "/data"}}}
+	cfg := p.ModuleConfig().WithStartFunctions()
+	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, cfg)
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	if errno := callWriteProbe(t, ctx, mod, "test.txt", "hello"); errno != 0 {
+		t.Fatalf("write_probe() = %d, want 0 (rw mount must allow writes)", errno)
+	}
+
+	got, err := os.ReadFile(dir + "/test.txt")
+	if err != nil {
+		t.Fatalf("read back the file the guest wrote: %v", err)
+	}
+	if string(got) != "hello" {
+		t.Errorf("file content = %q, want %q", got, "hello")
+	}
+}
+
+func TestPolicy_mount_readOnlyRejectsWrites(t *testing.T) {
+	ctx, rt, wasmBytes := newWASIRuntime(t)
+
+	dir := t.TempDir()
+	p := Policy{Mounts: []Mount{{Host: dir, Guest: "/data", ReadOnly: true}}}
+	cfg := p.ModuleConfig().WithStartFunctions()
+	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, cfg)
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	if errno := callWriteProbe(t, ctx, mod, "test.txt", "hello"); errno == 0 {
+		t.Error("write_probe() = 0, want an error (read-only mount must reject writes)")
+	}
+	if _, err := os.Stat(dir + "/test.txt"); err == nil {
+		t.Error("file was created on a read-only mount")
+	}
+}
+
+func TestMemoryLimitPages(t *testing.T) {
+	tests := []struct {
+		name    string
+		bytes   int64
+		want    uint32
+		wantErr bool
+	}{
+		{name: "exact page multiple", bytes: 512 * 1024 * 1024, want: 512 * 1024 * 1024 / wasmPageSize},
+		{name: "rounds up a partial page", bytes: 1, want: 1},
+		{name: "rounds up 1K", bytes: 1024, want: 1},
+		{name: "at the maximum", bytes: int64(maxMemoryLimitPages) * wasmPageSize, want: maxMemoryLimitPages},
+		{name: "zero is rejected", bytes: 0, wantErr: true},
+		{name: "negative is rejected", bytes: -1, wantErr: true},
+		{name: "one byte over the maximum is rejected", bytes: int64(maxMemoryLimitPages)*wasmPageSize + 1, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MemoryLimitPages(tt.bytes)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("MemoryLimitPages(%d) = %d, want error", tt.bytes, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("MemoryLimitPages(%d) error = %v", tt.bytes, err)
+			}
+			if got != tt.want {
+				t.Errorf("MemoryLimitPages(%d) = %d, want %d", tt.bytes, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPolicy_runtimeConfig_enforcesMemoryLimit(t *testing.T) {
+	ctx := context.Background()
+
+	wasmBytes, err := os.ReadFile("../testdata/modules/mem_hog.wasm")
+	if err != nil {
+		t.Fatalf("read mem_hog.wasm: %v", err)
+	}
+
+	// 2ページ(128KiB)に制限する。1ページ目はモジュール宣言の初期メモリで
+	// 既に確保済みなので、grow_until_failは1回成功して2ページ目に到達し、
+	// 2回目のgrowで失敗するはず。
+	p := Policy{MemoryLimitBytes: 2 * wasmPageSize}
+	rtConfig, err := p.RuntimeConfig()
+	if err != nil {
+		t.Fatalf("RuntimeConfig: %v", err)
+	}
+
+	rt := wazero.NewRuntimeWithConfig(ctx, rtConfig)
+	defer rt.Close(ctx)
+
+	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, wazero.NewModuleConfig().WithStartFunctions())
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	res, err := mod.ExportedFunction("grow_until_fail").Call(ctx)
+	if err != nil {
+		t.Fatalf("call grow_until_fail: %v", err)
+	}
+	if got, want := res[0], uint64(2); got != want {
+		t.Errorf("grow_until_fail() = %d pages, want %d (the -m limit must cap growth)", got, want)
 	}
 }
 

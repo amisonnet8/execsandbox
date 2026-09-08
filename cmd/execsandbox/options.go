@@ -2,16 +2,17 @@ package main
 
 // 起動時CLIオプションのパース(仕様書§7)。
 //
-// フェーズ②Step3時点では、ここで組み立てるoptionsの値のうち実際に配線されて
-// いるのは-n/-d/-b/-f/-qのみ。-e/-v/-s/-t/-xはパース・検証だけを行い、
+// フェーズ②Step5時点では、ここで組み立てるoptionsの値のうち実際に配線されて
+// いるのは-n/-d/-b/-f/-q/-e/-s/-v/-mのみ。-t/-xはパース・検証だけを行い、
 // wazeroへの適用(ModuleConfig/RuntimeConfig)はフェーズ②の以降のステップ
-// (WASI組み込み、ファイルシステム、乱数・時刻、タイムアウト)で行う。
+// (乱数・時刻、タイムアウト)で行う。
 
 import (
 	"flag"
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -147,6 +148,11 @@ func (o *options) validate() error {
 	// この範囲に収まらない値は起動時に弾く。
 	if o.maxFrame > math.MaxInt32 {
 		return fmt.Errorf("invalid -f/--max-frame: must not exceed %d bytes (2G-1)", int32(math.MaxInt32))
+	}
+	for _, v := range o.volumes {
+		if _, err := os.Stat(v.Host); err != nil {
+			return fmt.Errorf("invalid -v/--volume: host path %q: %w", v.Host, err)
+		}
 	}
 	return nil
 }
