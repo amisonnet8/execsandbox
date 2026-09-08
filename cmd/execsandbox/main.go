@@ -1,77 +1,51 @@
 // cmd/execsandbox は、ビルダーが埋め込むベースバイナリ本体。
 //
-// フェーズ①Step 4時点では、サンドボックス間通信に最低限必要な -n/--name と
-// -d/--dest のみをパースする。仕様書§7.1の残りのオプション（-e/-v/-m/-b/-f/
-// -l/-s/-t/-x/-q/-h/-V）と、それに応じたエラー表示の統一は「本格的な作り込み」
-// であるフェーズ②で行う。そのため、ここでのフラグ解析エラーはGoの標準
-// `flag`パッケージ自身の出力（execsandbox:接頭辞なし）のまま許容している。
+// フェーズ②Step2時点で、仕様書§7.1の全オプションのパース・検証・ヘルプ・
+// バージョン表示を実装した。ただし-e/-v/-s/-t/-xの値はまだwazeroへ配線して
+// いない（WASI組み込み・ファイルシステム・タイムアウト等はフェーズ②の
+// 以降のステップで行う）。-n/-d/-b/-fは実際に配線済み。
 package main
 
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 
 	"github.com/tetratelabs/wazero"
 
 	"github.com/amisonnet8/execsandbox/sandbox"
 )
 
-// フェーズ①Step 4時点ではCLIオプション未実装のため、仕様書§7.1の既定値を
-// そのまま使う。フェーズ②で-b/--mailbox-limit、-f/--max-frameの解析結果に
-// 置き換える。
-const (
-	defaultMailboxLimit = 1024
-	defaultMaxFrame     = 1 << 20 // 1M
-)
-
-// destAssignments は "-d, --dest N=ID" を繰り返し指定できるようにする
-// flag.Value実装（仕様書§3.3）。
-type destAssignments map[uint32]string
-
-func (d destAssignments) String() string {
-	return "" // flagパッケージの既定値表示用。複数指定できるため特に意味を持たない。
-}
-
-func (d destAssignments) Set(s string) error {
-	n, id, ok := strings.Cut(s, "=")
-	if !ok || n == "" || id == "" {
-		return fmt.Errorf("invalid -d/--dest value %q, want N=ID", s)
-	}
-	num, err := strconv.ParseUint(n, 10, 32)
-	if err != nil || num == 0 {
-		return fmt.Errorf("invalid destination number %q in %q, want a positive integer", n, s)
-	}
-	d[uint32(num)] = id
-	return nil
-}
+// version はビルド時に `-ldflags -X main.version=<tag>` で上書きする
+// （フェーズ④のリリースパイプラインが担う。バージョン埋め込み方式全体の
+// 整理はフェーズ④、PLAN.md「保留事項」参照）。
+var version = "dev"
 
 func main() {
-	fs := flag.NewFlagSet("execsandbox", flag.ContinueOnError)
-
-	var name string
-	fs.StringVar(&name, "n", "", "own ID for sandbox-to-sandbox messaging (see --name)")
-	fs.StringVar(&name, "name", "", "own ID for sandbox-to-sandbox messaging; without it, this instance does not receive sandbox-to-sandbox messages")
-
-	dest := make(destAssignments)
-	fs.Var(dest, "d", "assign a destination number to an ID, N=ID (see --dest)")
-	fs.Var(dest, "dest", "assign a destination number to an ID, N=ID; repeatable")
-
-	if err := fs.Parse(os.Args[1:]); err != nil {
-		os.Exit(2) // flagパッケージが既にUsage/エラーメッセージを出力済み
+	opts, err := parseArgs(os.Args[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "execsandbox: %s\n", err)
+		fmt.Fprintln(os.Stderr, "execsandbox: run with --help for usage")
+		os.Exit(2)
 	}
 
-	if err := run(name, dest); err != nil {
+	if opts.help {
+		writeUsage(os.Stdout)
+		os.Exit(0)
+	}
+	if opts.version {
+		fmt.Fprintf(os.Stdout, "execsandbox %s\n", version)
+		os.Exit(0)
+	}
+
+	if err := run(opts); err != nil {
 		fmt.Fprintf(os.Stderr, "execsandbox: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(name string, dest destAssignments) error {
+func run(opts *options) error {
 	selfPath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("locate own executable: %w", err)
@@ -96,18 +70,18 @@ func run(name string, dest destAssignments) error {
 		return err
 	}
 
-	mailbox := sandbox.NewMailbox(defaultMailboxLimit, os.Stderr)
+	mailbox := sandbox.NewMailbox(opts.mailboxLimit, os.Stderr)
 
-	if name != "" {
-		listener, err := sandbox.Listen(name)
+	if opts.name != "" {
+		listener, err := sandbox.Listen(opts.name)
 		if err != nil {
 			return fmt.Errorf("listen for sandbox-to-sandbox messages: %w", err)
 		}
 		defer listener.Close()
-		go sandbox.Serve(listener, mailbox, defaultMaxFrame, os.Stderr)
+		go sandbox.Serve(listener, mailbox, int(opts.maxFrame), os.Stderr)
 	}
 
-	destTable := sandbox.NewDestTable(dest)
+	destTable := sandbox.NewDestTable(opts.dest)
 	defer destTable.Close()
 
 	ctx := context.Background()
@@ -116,7 +90,7 @@ func run(name string, dest destAssignments) error {
 
 	if _, err := sandbox.RegisterHostModule(ctx, rt, sandbox.HostConfig{
 		Mailbox:  mailbox,
-		MaxFrame: defaultMaxFrame,
+		MaxFrame: int(opts.maxFrame),
 		Log:      os.Stderr,
 		Dest:     destTable,
 	}); err != nil {

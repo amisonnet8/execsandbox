@@ -188,7 +188,41 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 
 ## 現在地
 
-**フェーズ②/ Step 1 完了 → Step 2（未着手）**
+**フェーズ②/ Step 2 完了 → Step 3（未着手）**
+
+Step 2（CLI足場：全オプションのパースとヘルプ/バージョン）を完了した。
+
+- `cmd/execsandbox/options.go`（新設）: `options`構造体と`parseArgs`。
+  仕様書§7.1の全オプション（`-n`/`-d`/`-e`/`-v`/`-m`/`-b`/`-f`/`-s`/`-t`/
+  `-x`/`-q`/`-h`/`-V`）を登録。`-m`/`-f`共通の`parseSize`（§7.3のK/M/G・
+  Ki/Mi/Gi・大文字小文字非区別）、`-t`は`time.ParseDuration`（確定済み
+  方針）、`-s`/`-x`はカンマ区切り集合、`-v`は`HOST:GUEST[:ro]`を
+  **右から**解釈しWindowsドライブレターと衝突しないようにした（GOOS非依存の
+  純関数、`sandbox/address.go`の`resolveSocketPath`と同じ手口）。`-d`は
+  重複する宛先番号をエラーにするよう変更した。
+- `cmd/execsandbox/usage.go`（新設）: 手書きのヘルプ文言（`fs.PrintDefaults()`
+  は短形・長形が別エントリになり表形式にできないため使わない）。
+- `cmd/execsandbox/main.go`: `-h`/`-V`はstdoutへexit 0。パースエラーは
+  `execsandbox:`接頭辞＋英語でstderrへexit 2（フェーズ①で許容していた
+  「標準flagパッケージの出力のまま」を解消した）。`var version = "dev"`を
+  追加（ldflagsでの上書きはフェーズ④）。`-b`/`-f`は`options`の値を
+  実際に`NewMailbox`/`HostConfig.MaxFrame`へ配線した（Step3で計画していた
+  「-b/-fの配線」のうちこの部分は`options`構造体が既に正しい既定値を
+  持つため前倒しで完了。Step3の残りはログの統一（`-q`）と`-f`の
+  ABI上限（`math.MaxInt32`）チェック）。
+- `-e`/`-v`/`-s`/`-t`/`-x`は**パース・検証のみ**で、wazeroへの配線は
+  未実装（構造体フィールドとして保持するだけ）。フェーズ②の以降のステップ
+  （WASI組み込み・ファイルシステム・乱数時刻・タイムアウト）で配線する。
+- `-l/--listen`は仕様書に存在するが未定義のまま（フェーズ③スコープ）。
+- `cmd/execsandbox/options_test.go`（新設）: `parseSize`・`envList`・
+  `parseVolume`（Windows形式含む）・`stdioSet`・`denySet`・
+  `durationValue`・`destAssignments`の重複検出・`--`以降の分離・
+  ヘルプ/バージョン検出・既定値のテーブルテスト。
+- **実際の動作確認**: ビルドした実行ファイルで`--help`・`-V`・`-m bogus`・
+  `-s foo`・`-x bar`・`-v /a`・重複`-d`・`-t 0s`・スタンプなし実行を
+  すべて実行し、期待通りの終了コード・英語メッセージ・
+  `execsandbox:`接頭辞を確認した。`make check`・`make race`・`make test`
+  すべてgreen。
 
 Step 1（`-t`中断機構のスパイク検証）を完了した。**ゲート合格、プランB不要。**
 
