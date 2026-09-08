@@ -1,11 +1,5 @@
 // cmd/execsandbox-build は、`.wasm` モジュールをExecSandbox本体（ベース
 // バイナリ）に埋め込み、単一の実行ファイルを生成するビルダー（仕様書§6）。
-//
-// フェーズ④Step1時点では、CLIのパース・検証と、指定されたターゲットの
-// ベースバイナリ・入力wasmが読み込めることの確認までを実装している。実際の
-// スタンプ（フッター書き込み）はStep2で実装する
-// （フェーズ①Step2〜3と同じ「まず読み込みを確認し、後段の処理を差し替える」
-// 進め方）。
 package main
 
 import (
@@ -56,9 +50,18 @@ func run(opts *options) error {
 		return fmt.Errorf("read %s: %w", opts.wasmPath, err)
 	}
 
-	// フェーズ④Step1時点ではスタンプ（フッター書き込み）が未実装のため、
-	// 読み込めたバイト数を報告するだけ（Step2で置き換える）。
-	fmt.Fprintf(os.Stderr, "execsandbox-build: loaded base binary for %s (%d bytes) and %s (%d bytes)\n",
-		opts.target, len(base), opts.wasmPath, len(wasm))
+	out := stamp(base, wasm)
+
+	outPath := finalOutputPath(opts)
+	// 実行ビットを立てる(0o755)。Windowsには実行ビットの概念がなく
+	// os.WriteFileのmode引数は無視されるが、無害なので分岐しない
+	// (.claude/rules/stamp.md「Windowsパーミッションを検証するテストは
+	// runtime.GOOS != "windows"でガードする」——ここは書き込み側であり
+	// 検証ではないため、単に共通コードのままでよい)。
+	if err := os.WriteFile(outPath, out, 0o755); err != nil {
+		return fmt.Errorf("write %s: %w", outPath, err)
+	}
+
+	fmt.Fprintf(os.Stderr, "execsandbox-build: wrote %s (%s, %d bytes)\n", outPath, opts.target, len(out))
 	return nil
 }
