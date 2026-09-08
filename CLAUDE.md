@@ -51,6 +51,9 @@ WASM実行ランタイムとWASMモジュールを1つの実行ファイル内�
 - **`.claude/rules/wazero-quirks.md`** — `wazero`固有の落とし穴（乱数・時刻の
   既定がサンドボックス寄りで仕様と逆転している点、`WithMemoryLimitPages`の
   panic条件、`WithCloseOnContextDone`の実効的な挙動など）
+- **`.claude/rules/guest-quirks.md`** — ゲスト言語のWASI実装に起因する
+  落とし穴（ホストのABI境界は正しくても、TinyGoの`crypto/rand`のように
+  ゲスト側のlibc実装がエラーを握りつぶす等、言語ごとに見え方が変わる例）
 
 これらのルールファイルは、実装中に得た細かい気づき・教訓を Claude Code 自身が
 育てていくものである。新しく気づいたルール・過去に踏んだ落とし穴などがあれば、

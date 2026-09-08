@@ -366,6 +366,15 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 `wasm32-wasip1`はこのセッションでも継続して使えた（`/tmp/execsandbox-work/`
 のビルダーも再利用）。
 
+**フォローアップ**: ユーザーから、リリース作成・リポジトリメタデータ設定
+（上記「保留事項」参照）は既に完了済みとの確認を得た。`execsandbox-sdk`の
+パッケージマネージャ公開はSDK側のリポジトリ・devcontainerで行う（本
+リポジトリのスコープ外）。`docs/tour/`執筆中に見つけた「TinyGoの
+`crypto/rand`が`-x random`のエラーを握りつぶす」という知見は、新設した
+`.claude/rules/guest-quirks.md`（ゲスト言語のWASI実装に起因する落とし穴を
+集めるファイル。`wazero-quirks.md`のゲスト言語版）に切り出した。
+`CLAUDE.md`の参照リストにも追加済み。
+
 ---
 
 以下は`docs/examples/`新設時点の記録。
