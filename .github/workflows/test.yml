@@ -76,6 +76,13 @@ jobs:
         shell: bash
         run: bash tests/e2e_conn.sh
 
+      # フェーズ④Step 4: execsandbox-buildが実際にスタンプした実行ファイルが
+      # 動くこと(自環境向け)と、6環境分のクロスターゲット出力がembedされた
+      # ベースバイナリ+wasm+フッターの結合とバイト一致することを確認する。
+      - name: e2e (builder)
+        shell: bash
+        run: bash tests/e2e_builder.sh
+
   # -raceはcgoを要求するため本体の「pure Go・CGO_ENABLED=0」方針とは別枠で扱う
   # （.claude/rules/testing.md「-raceの運用方針」）。windows-latestにはCコンパイラが
   # 標準で入っていないため対象から外す。

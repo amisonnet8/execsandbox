@@ -3,7 +3,7 @@
 build: cross-base
 	CGO_ENABLED=0 go build ./...
 
-test:
+test: cross-base
 	@for script in tests/*.sh; do \
 		echo "=== $$script ==="; \
 		bash "$$script" || exit 1; \
@@ -39,8 +39,10 @@ testdata:
 # ベースバイナリ（cmd/execsandboxのクロスビルド成果物）を//go:embedで内包する。
 # このターゲットはその埋め込み対象を用意する。生成物はコミットしない
 # （.gitignore）ため、cmd/execsandbox-buildパッケージをgo build/go vet/
-# go testする前に必ず実行しておく必要がある（build/check/raceが依存している
-# 理由）。CGO_ENABLED=0のためcrosコンパイルにCコンパイラは不要。
+# go testする前に必ず実行しておく必要がある（build/check/race/testが依存
+# している理由。testが依存するのはtests/e2e_builder.shが実際にビルダーを
+# go buildするため）。CGO_ENABLED=0のためクロスコンパイルにCコンパイラは
+# 不要。
 cross-base:
 	@mkdir -p cmd/execsandbox-build/basebinaries
 	CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_linux_amd64     ./cmd/execsandbox
