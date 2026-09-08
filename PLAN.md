@@ -92,7 +92,35 @@ TinyGo向けSDKに加えて**他言語のSDKを最低1つ**実装し、ABIが本
 
 ## 現在地
 
-**フェーズ①/ Step 1 完了 → Step 2（未着手）**
+**フェーズ①/ Step 2 完了 → Step 3（未着手）**
+
+Step 2（スタンプ方式の実装）を完了した。
+
+- `sandbox/footer.go` — フッター（Magic 8 + Version 4 + Offset 8 + Length 8 +
+  Reserved 4、ビッグエンディアン）の読み出しを実装。`ExtractWASM(r io.ReaderAt,
+  size int64) ([]byte, error)`。`ReadAt`のみを使いファイル全体は読み込まない。
+  マジック不一致・サイズ不足は`ErrNotStamped`として区別し、
+  offset/lengthがファイルサイズと矛盾する場合は別エラーとする破損検知も追加。
+  Magicは`EXECSB01`（ExecDBの`EXECDB01`と区別）。
+- `cmd/execsandbox/main.go` — ベースバイナリの骨格。`os.Executable()`から
+  自己を開き、`ExtractWASM`で埋め込みWASMを取り出す。マジック不一致時は
+  ビルダーの使用を促す英語エラーを出して`exit 1`（仕様書§6.2、
+  `.claude/rules/cli-output.md`）。wazeroでの実行はまだ持たず、Step 3で
+  現在の「見つかったバイト数を報告するだけ」の処理を置き換える。
+- **フッターの書き込みは`sandbox/`に置かない**（`.claude/rules/
+  directory-structure.md`の方針通り、書き込みはcmd/execsandbox-build＝
+  フェーズ④の責務）。単体テスト用の組み立てヘルパーは`sandbox/footer_test.go`
+  内の非公開関数として実装（本番ビルドには含まれない）。
+- **実際の動作確認**：`cmd/execsandbox`をビルドし、(a)スタンプなしで実行して
+  英語エラー＋`exit 1`を確認、(b)ビルダー代わりの一時的なGoスニペットで
+  ダミーWASM＋フッターを追記したコピーを作り、実行して埋め込みバイト数が
+  正しく報告されることを確認した（一時スニペットはリポジトリには残していない。
+  Step 3以降、E2Eで恒常的なスタンプ手段が必要になった時点で改めて用意する）。
+- `execdb_poc.go`を削除した。フッター読み出しの実装は完了し、ExecDBの書き込み
+  側（自己上書き等）は`.claude/rules/stamp.md`の「引き継がない部分」に該当し
+  元々不要だったため、参照価値がなくなったと判断した。
+
+**フェーズ①/ Step 1 完了**
 
 Step 1（足場固め＋技術検証）を完了した。
 
@@ -121,10 +149,9 @@ Step 1（足場固め＋技術検証）を完了した。
     `.wat`ソースと`.wasm`成果物の両方をコミットする。CIに`wat2wasm`の導入を
     前提にしない。
 
-次に着手すべきは **Step 2: スタンプ方式の実装**（フッターの読み書き、
-`os.Executable()`からの自己読み出し）。`execdb_poc.go`（ExecDBのPoC、
-読み出し側をほぼそのまま流用できる想定）を参考にする。参考にし終えたら
-`execdb_poc.go`は削除する（現時点ではまだ必要）。
+次に着手すべきは **Step 3: 最小の実行経路**（埋め込まれたWASMを取り出し
+`wazero`で実行する。ホスト関数`send`/`recv`/`max_frame`の登録、メールボックス
+（上限付きキュー、tail-drop）の実装）。
 
 ## 保留事項
 
