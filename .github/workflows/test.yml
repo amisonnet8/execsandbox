@@ -1,0 +1,61 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: gofmt check
+        shell: bash
+        run: |
+          fmt_out="$(gofmt -l .)"
+          if [ -n "$fmt_out" ]; then
+            echo "$fmt_out" 1>&2
+            echo "gofmt: above files are not formatted (run 'make fmt')" 1>&2
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: unit tests
+        run: go test -count=1 ./...
+
+      # フェーズ①Step 5: AF_UNIXでのサンドボックス間通信を3OSで確認する
+      # （仕様書§3.1でAF_UNIX一本化を決めた前提が崩れていないかの検証）。
+      - name: e2e (sandbox-to-sandbox over AF_UNIX)
+        shell: bash
+        run: bash tests/e2e_basic.sh
+
+  # -raceはcgoを要求するため本体の「pure Go・CGO_ENABLED=0」方針とは別枠で扱う
+  # （.claude/rules/testing.md「-raceの運用方針」）。windows-latestにはCコンパイラが
+  # 標準で入っていないため対象から外す。
+  race:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: race tests
+        env:
+          CGO_ENABLED: "1"
+        run: go test -race -count=1 ./...

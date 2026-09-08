@@ -4,7 +4,10 @@ build:
 	CGO_ENABLED=0 go build ./...
 
 test:
-	go test -count=1 ./...
+	@for script in tests/*.sh; do \
+		echo "=== $$script ==="; \
+		bash "$$script" || exit 1; \
+	done
 
 check: fmt-check
 	go vet ./...

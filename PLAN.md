@@ -85,14 +85,60 @@ TinyGo向けSDKに加えて**他言語のSDKを最低1つ**実装し、ABIが本
 `recv` のタイムアウト（Step 3では無限待ちのみ）、ビルダー、クロスターゲット。
 
 **フェーズ①完了の判定**：
-- スタンプした実行ファイルが、埋め込まれたWASMを実行できる。
-- 2つのサンドボックス間で `send`/`recv` が機能する。
+- スタンプした実行ファイルが、埋め込まれたWASMを実行できる。 ✅（Step2/3）
+- 2つのサンドボックス間で `send`/`recv` が機能する。 ✅（Step4で実プロセス2つで
+  確認、Step5で`tests/e2e_basic.sh`として自動化）
 - メールボックス上限に達したときtail-dropが起き、ホスト側stderrに記録される。
+  ✅（`sandbox/mailbox_test.go`の`TestMailbox_tailDrop`、Step3から存在）
 - GitHub Actions 3OSマトリクスがgreen（**WindowsでのAF_UNIX疎通を含む**）。
+  ⏳ ワークフロー（`.github/workflows/test.yml`）はStep5で作成済みだが、
+  **リモートへpushしていないため実際にgreenになったことはまだ確認できて
+  いない。** pushしてActionsの結果を見るまでは、フェーズ①の完了を
+  正式に宣言しないこと。
 
 ## 現在地
 
-**フェーズ①/ Step 4 完了 → Step 5（未着手）**
+**フェーズ①/ Step 5 実装完了 → リモートpushとCI結果待ち**
+
+Step 5（疎通確認とCI）を実装した。
+
+- `testdata/modules/sender_once.wat` — 固定メッセージを宛先1へ1回送って
+  終了するだけの送信専用モジュール（testing.mdの「一定回数送ったら終了する」
+  の最小形）。E2Eのnode Aとして使う。
+- `tests/stamp/main.go` — E2Eで使う「ベースバイナリにWASMをスタンプする」
+  最小ツール。実ビルダー（フェーズ④）の代用であり配布物ではない。フッターの
+  組み立てロジックは`sandbox`パッケージと共有しない
+  （`.claude/rules/directory-structure.md`の「書き込みはビルダーの責務」
+  という切り分けに合わせ、意図的に独立実装とした）。PLAN.md Step2の記録
+  （「E2Eで恒常的なスタンプ手段が必要になった時点で改めて用意する」）の実行。
+- `tests/e2e_basic.sh` — nodeA（送信専用）・nodeB（受信専用、`host_probe.wasm`）
+  を実プロセスとして起動し、AF_UNIX経由でメッセージが届くことを確認する。
+  **観測手段の工夫**：nodeBの"_start"は1通受け取るまでrecv(timeout_ms=-1)で
+  ブロックし、受け取ると素直に終了する。どちらのプロセスもstdoutを持たない
+  ため、「nodeBプロセスが自発的に終了すること」を届いたことの観測点とした。
+  nodeBの起動直後はまだ待ち受けが始まっていない可能性があるため、
+  nodeAの送信を届くまで（最大30回×0.2秒）リトライする設計にした
+  （sendは無言で失敗するため、リトライ以外に確実な同期手段がない）。
+  `.claude/rules/testing.md`の「複数プロセスを扱うE2Eの注意」に従い、
+  `trap`でのPID後始末、`XDG_RUNTIME_DIR`を一時ディレクトリへ向ける、
+  `set -euo pipefail`下でのコマンド置換・パイプの扱いに注意した。
+  ローカルで複数回実行しフレーキーでないこと、プロセスが残らないことを
+  確認済み。
+- `Makefile`の`test`ターゲットを`tests/*.sh`を回す役割に一本化した
+  （単体テストは`check`/`race`が担うため、`test`が単体テストを重複実行して
+  いたStep1時点の状態を解消）。
+- `.github/workflows/test.yml` — `test`ジョブ（ubuntu/macos/windows
+  3OSマトリクス、`gofmt`確認→`go vet`→単体テスト→`tests/e2e_basic.sh`）と
+  `race`ジョブ（ubuntu/macosのみ、`.claude/rules/testing.md`の方針通り
+  windowsは対象外）を用意した。`make`はwindows-latestに標準で入っていない
+  ため、ワークフロー内では`make`を経由せずgoコマンド・シェルスクリプトを
+  直接呼ぶ形にした。
+
+**未完了**：このワークフローはまだリモートへpushしておらず、GitHub Actions上で
+実際にgreenになったことを確認できていない。**フェーズ①完了の判定の最後の項目
+（3OSマトリクスがgreen）は、pushしてActionsの結果を見るまで達成とみなさない。**
+push自体は`.claude/settings.json`で確認を要する操作のため、ユーザーの指示を
+仰ぐこと。
 
 Step 4（サンドボックス間通信）を完了した。
 
@@ -243,16 +289,22 @@ Step 1（足場固め＋技術検証）を完了した。
     `.wat`ソースと`.wasm`成果物の両方をコミットする。CIに`wat2wasm`の導入を
     前提にしない。
 
-次に着手すべきは **Step 5: 疎通確認とCI**（2つのサンドボックスを起動して
-片方から他方へメッセージが届くことを確認するE2Eスクリプト、GitHub Actions
-3OSマトリクス。特にWindowsでのAF_UNIX疎通を早期に確認する）。
+次に必要なのは、**このコミットをリモートへpushしてGitHub Actionsの結果を
+確認すること**（特にWindowsでのAF_UNIX疎通）。3OSマトリクスがgreenになれば
+フェーズ①は完了し、次はフェーズ②（本体の作り込み：ポリシー適用・CLI・
+バックプレッシャー・ログ）に進む。もしWindowsでAF_UNIXが機能しない場合、
+仕様書§3.1の設計判断（AF_UNIX一本化）まで戻って見直しが必要になる。
 
 ## 保留事項
 
 以下は判断を先送りしている事項。該当するタイミングが来たら提案・相談すること。
 
-- **`Makefile` のターゲット構成** — **Step 1で決定済み。** `build`/`test`/
-  `check`/`fmt`/`fmt-check`/`race`/`testdata`の7つ。`build`は現時点では
+- **`Makefile` のターゲット構成** — **Step 1で決定、Step 5で`test`の役割を
+  確定。** `build`/`test`/`check`/`fmt`/`fmt-check`/`race`/`testdata`の7つ。
+  `test`はStep1時点では単体テストの重複実行だったが、Step5で
+  `tests/*.sh`（E2E）を走らせる役割に一本化した（単体テストは`check`/`race`が
+  担う。`.claude/rules/directory-structure.md`の「`tests/`はmake testが実行する
+  E2E/結合テスト一式」という定義に合わせた）。`build`は現時点では
   `go build ./...`のみ（`cmd/execsandbox`等が増えたら実体を伴う）。
   `.claude/settings.json`のビルド自動フックはまだ設定していない
   （実装がある程度進んでから提案する、`CLAUDE.md`参照）。
