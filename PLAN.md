@@ -91,14 +91,16 @@ TinyGo向けSDKに加えて**他言語のSDKを最低1つ**実装し、ABIが本
 - メールボックス上限に達したときtail-dropが起き、ホスト側stderrに記録される。
   ✅（`sandbox/mailbox_test.go`の`TestMailbox_tailDrop`、Step3から存在）
 - GitHub Actions 3OSマトリクスがgreen（**WindowsでのAF_UNIX疎通を含む**）。
-  ⏳ ワークフロー（`.github/workflows/test.yml`）はStep5で作成済みだが、
-  **リモートへpushしていないため実際にgreenになったことはまだ確認できて
-  いない。** pushしてActionsの結果を見るまでは、フェーズ①の完了を
-  正式に宣言しないこと。
+  ✅ 初回pushでmacOS/Windowsが2種類のバグ（パス区切り、AF_UNIXの
+  `sun_path`長）でFAILしたが、修正して再pushしたところ全ジョブgreenを
+  確認した。
+
+**フェーズ①（ミニマム実装）は完了した。** 次はフェーズ②
+（本体の作り込み：ポリシー適用・CLI・バックプレッシャー・ログ）に進む。
 
 ## 現在地
 
-**フェーズ①/ Step 5 実装完了 → CI失敗を修正、再push待ち**
+**フェーズ①完了 → フェーズ②（未着手）**
 
 Step 5（疎通確認とCI）を実装しpushしたところ、`test(macos-latest)`・
 `test(windows-latest)`・`race(macos-latest)`がFAILした。いずれも
@@ -124,7 +126,8 @@ ExecSandbox自身の実装バグであり、以下の通り修正済み（詳細
    ヘルパーを使うテストはWindowsでは`t.Skip`する）。
 
 修正後、ローカルで`make check`・`make race`・`make test`すべて再度
-green化を確認済み。**この修正はまだpushしていない。**
+green化を確認し、pushしてGitHub Actions 3OSマトリクス（`test`/`race`とも）が
+全green になったことを確認した。
 
 Step 5自体（E2Eスクリプト・CI設定）の実装内容は以下の通り。
 
@@ -315,11 +318,10 @@ Step 1（足場固め＋技術検証）を完了した。
     `.wat`ソースと`.wasm`成果物の両方をコミットする。CIに`wat2wasm`の導入を
     前提にしない。
 
-次に必要なのは、**このコミットをリモートへpushしてGitHub Actionsの結果を
-確認すること**（特にWindowsでのAF_UNIX疎通）。3OSマトリクスがgreenになれば
-フェーズ①は完了し、次はフェーズ②（本体の作り込み：ポリシー適用・CLI・
-バックプレッシャー・ログ）に進む。もしWindowsでAF_UNIXが機能しない場合、
-仕様書§3.1の設計判断（AF_UNIX一本化）まで戻って見直しが必要になる。
+**フェーズ①は完了した**（3OSマトリクスがWindowsでのAF_UNIX疎通を含めて
+green）。次はフェーズ②（本体の作り込み：ポリシー適用・CLI・バックプレッ
+シャー・ログ）に着手する。フェーズ②のステップ分割はまだ決めていないため、
+着手前に提案する。
 
 ## 保留事項
 
