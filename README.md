@@ -33,6 +33,7 @@ sha256sum -c execsandbox-build_*.sha256
 
 ## ドキュメント
 
+- [`docs/tour/`](docs/tour/) — 初めての人向けの入門ガイド。上から順に読む
 - [`docs/usage/execsandbox.md`](docs/usage/execsandbox.md) — 生成された
   実行ファイルの起動オプション一覧
 - [`docs/usage/execsandbox-build.md`](docs/usage/execsandbox-build.md) —
