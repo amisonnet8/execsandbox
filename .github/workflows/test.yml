@@ -114,3 +114,25 @@ jobs:
         env:
           CGO_ENABLED: "1"
         run: go test -race -count=1 ./...
+
+  # 依存ライブラリの脆弱性・ライセンス互換性(MIT/BSD/Apache-2.0等は許可、
+  # GPL系等は拒否)をtrivyでチェックする(.claude/rules/testing.md)。
+  # severity HIGH,CRITICALで exit-code 1にしているのは、trivyの既定の
+  # ライセンス分類(forbidden→CRITICAL、restricted→HIGH)がGPL系を含む
+  # 非許可カテゴリに割り当たるため、この閾値で拒否ライセンスの混入を
+  # 検知できる。
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: trivy scan (vulnerabilities and license compatibility)
+        uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_LICENSE_FULL: "true"
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,license
+          severity: HIGH,CRITICAL
+          exit-code: "1"

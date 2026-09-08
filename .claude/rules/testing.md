@@ -15,6 +15,28 @@
 | ゲスト側（WASMモジュール） | TinyGoでビルドした検証用モジュールを使う。手元Linuxで完結する。 |
 | 依存ライブラリの脆弱性・ライセンスチェック | GitHub Actions上で `trivy` を実行し、既知の脆弱性（CVE）とライセンス互換性（MIT/BSD/Apache-2.0等は許可、GPL系等は拒否）をチェックする。ソースコード自体のコピペ検出は対象外（人間レビューに委ねる）。 |
 
+**`trivy`は`test.yml`の`trivy`ジョブとして配線済み。** `aquasecurity/trivy-action`
+（trivy自体のベンダーであるaquasecurityが公式に公開しているAction）を使い、
+`scanners: vuln,license`・`severity: HIGH,CRITICAL`・`exit-code: 1`で
+脆弱性とライセンス互換性を検査する。ライセンスの許可判定は個別の許可リストを
+持たず、trivyの既定分類（forbidden→CRITICAL、restricted→HIGH、GPL系はこの
+いずれかに入る）に委ね、その閾値をHIGH/CRITICALで拒否することで実現している。
+`TRIVY_LICENSE_FULL: "true"`を渡しているのは、フルスキャン
+（`--license-full`相当）でないとLICENSEファイル等のゆるいライセンス検出しか
+行われず、依存パッケージ側のライセンス判定精度が落ちるため。
+`release.yml`側には重複させない（`test.yml`のpush/pull_requestで検証済みという
+前提の軽量ゲートに留める、という既存方針に合わせた）。
+
+devcontainerには`trivy`本体を入れているが、そのインストール方法には注意点が
+ある。当初`features`に`ghcr.io/dhoeric/features/trivy`（個人のGitHub名前空間で
+公開された非公式のcommunity feature）を使っていたが、ユーザー指摘で
+**aquasecurity公式のaptリポジトリからインストールする方式
+（`.devcontainer/postCreate.sh`）へ差し替えた。** devcontainerのfeatureや
+インストールスクリプトを追加する際は、`ghcr.io/devcontainers/features/*`
+（公式org）か、ツール自体のベンダーが公開しているものかを確認すること。
+個人の名前空間（`ghcr.io/<個人アカウント>/...`）のfeatureは、内容を検証して
+いない限り追加しない。
+
 ## 実装後の動作確認について
 
 実装したら、必ずビルド確認に加えて実際の動作確認を行うこと。ロジック上正しそうに
