@@ -1,10 +1,10 @@
 // cmd/execsandbox は、ビルダーが埋め込むベースバイナリ本体。
 //
-// フェーズ②Step5時点で、仕様書§7.1の全オプションのパース・検証・ヘルプ・
+// フェーズ②Step6時点で、仕様書§7.1の全オプションのパース・検証・ヘルプ・
 // バージョン表示に加え、-q/--quietによるホスト側ログの抑制、WASI組み込みと
-// -e/-s/"--"以降の引数・-v（ファイルシステム）・-m（メモリ上限）の配線を
-// 実装した。-t/-xの値はまだwazeroへ配線していない（タイムアウト・乱数時刻は
-// フェーズ②の以降のステップで行う）。
+// -e/-s/"--"以降の引数・-v（ファイルシステム）・-m（メモリ上限）・
+// -x（乱数・時刻）の配線を実装した。-tの値はまだwazeroへ配線していない
+// （タイムアウトはフェーズ②の以降のステップで行う）。
 package main
 
 import (
@@ -93,6 +93,7 @@ func run(opts *options) error {
 		Stdio:            sandbox.Stdio(opts.stdio),
 		Args:             opts.guestArgs,
 		Mounts:           toSandboxMounts(opts.volumes),
+		Deny:             sandbox.Deny(opts.deny),
 		MemoryLimitBytes: opts.memLimit,
 		Stdin:            os.Stdin,
 		Stdout:           os.Stdout,

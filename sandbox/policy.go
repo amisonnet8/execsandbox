@@ -6,6 +6,7 @@ package sandbox
 // 受け取る（.claude/rules/directory-structure.md）。
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io"
 
@@ -31,6 +32,15 @@ type Mount struct {
 	ReadOnly    bool
 }
 
+// Deny はどのケイパビリティを明示的に遮断するか（-x/--deny）。仕様書§8.2で
+// 乱数・時刻は既定で許可としているが、wazero自身の既定はこれと逆
+// （決定的な乱数、偽の単調時計）である点に注意。falseのままなら
+// ModuleConfigで明示的に有効化し、仕様の既定（許可）を成立させる
+// （.claude/rules/wazero-quirks.md、Step 8で新設予定）。
+type Deny struct {
+	Random, Time bool
+}
+
 // Policy は起動時オプションから組み立てたポリシー一式。
 type Policy struct {
 	Env   []EnvVar
@@ -39,6 +49,7 @@ type Policy struct {
 	// （ModuleConfigが補う。確認済み方針）。
 	Args   []string
 	Mounts []Mount
+	Deny   Deny
 	// MemoryLimitBytes はWASM線形メモリの上限（-m/--mem-limit）。バイト単位。
 	MemoryLimitBytes int64
 
@@ -81,7 +92,41 @@ func (p Policy) ModuleConfig() wazero.ModuleConfig {
 		cfg = cfg.WithFSConfig(fsConfig)
 	}
 
+	// 乱数: 仕様書§8.2は既定で許可。wazeroの既定は決定的な乱数（毎回同じ
+	// バイト列）であり、これは「許可」ではなく「予測可能」という別の危険を
+	// 生むため、-x randomがない限り明示的にcrypto/rand.Readerへ切り替える。
+	// -x randomの場合は常にエラーを返すreaderを渡す。wazeroの決定的乱数を
+	// そのまま使わないのは、「遮断」のつもりが「予測可能な乱数を許可」に
+	// すり替わってしまうのを避けるため。
+	if p.Deny.Random {
+		cfg = cfg.WithRandSource(alwaysErrorReader{})
+	} else {
+		cfg = cfg.WithRandSource(rand.Reader)
+	}
+
+	// 時刻: 仕様書§8.2は既定で許可。wazeroの既定は偽の単調時計（1回の
+	// 呼び出しごとに1ms進むだけ）であり、これも「許可」ではなく「嘘の時刻」
+	// になるため、-x timeがない限り明示的に実時刻へ切り替える。
+	// nanotimeだけ有効化するとGoランタイムのsleep実装がビジーループに
+	// 陥るため、walltime/nanotime/nanosleepは必ず三点セットで扱う。
+	// -x timeの場合は何もしない。WASIのclock_time_getにエラー経路がなく
+	// 「取得を遮断」を表現できないため、wazeroの既定（偽の単調時計）の
+	// ままにするのが実効的な「時刻を見せない」手段になる
+	// （docs/usageに明記する、Step 8）。
+	if !p.Deny.Time {
+		cfg = cfg.WithSysWalltime().WithSysNanotime().WithSysNanosleep()
+	}
+
 	return cfg
+}
+
+// alwaysErrorReader は-x randomの実装。wazeroの決定的乱数（毎回同じ結果に
+// なるだけで「乱数が取れてしまう」ことに変わりはない）を流用せず、常に
+// 読み取りエラーにすることでrandom_getをEIOにする（確認済み方針）。
+type alwaysErrorReader struct{}
+
+func (alwaysErrorReader) Read([]byte) (int, error) {
+	return 0, fmt.Errorf("random is denied by -x/--deny")
 }
 
 // wasmPageSize はWASM線形メモリの1ページのバイト数（固定、仕様で規定）。

@@ -188,7 +188,50 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 
 ## 現在地
 
-**フェーズ②/ Step 5 完了 → Step 6（未着手）**
+**フェーズ②/ Step 6 完了 → Step 7（未着手）**
+
+Step 6（乱数・時刻〔`-x/--deny`〕。wazeroの既定が仕様と逆転する箇所）を
+完了した。
+
+- `sandbox/policy.go`: `Deny{Random, Time bool}`を`Policy.Deny`に追加。
+  `ModuleConfig()`で、`Deny.Random`がfalse（既定）なら`WithRandSource
+  (crypto/rand.Reader)`、trueなら常にエラーを返す`alwaysErrorReader`
+  （wazeroの決定的乱数をそのまま「遮断」として流用しない。予測可能な乱数を
+  許してしまうため）を設定。`Deny.Time`がfalse（既定）なら
+  `WithSysWalltime()`＋`WithSysNanotime()`＋`WithSysNanosleep()`を三点
+  セットで有効化（nanotimeだけ有効化するとGoランタイムのsleep実装が
+  ビジーループになる）。`Deny.Time`がtrueの場合は何もしない
+  （WASIの`clock_time_get`にエラー経路がなく「取得拒否」を表現できない
+  ため、wazeroの既定＝偽の単調時計のままにするのが実効的な遮断になる）。
+- **wazeroの既定挙動を実測で確認**: `WithRandSource`未設定時は決定的
+  （毎回同じバイト列）、`WithSysWalltime`未設定時は`FakeEpochNanos`
+  （`internal/platform/time.go`で定義、**2022-01-01T00:00:00Z**）を起点に
+  1回の呼び出しごとに1ms進むだけの偽時計になることをソースで確認した。
+  当初「小さい値（0付近）になるはず」と想定していたが誤りで、実際は
+  2022年基準の一見もっともらしい大きな値になる（実機確認時に判明。
+  テストの正しさには影響しない――`time.Since`による「現在時刻との差」で
+  判定しているため）。
+- `main.go`: `opts.deny`（`denySet{Random,Time bool}`、Step2でパース済み）を
+  `sandbox.Deny`へ変換して`Policy.Deny`へ配線。
+- `testdata/modules/wasi_probe.wat`を拡張し、`random_get`/`clock_time_get`を
+  直接import。`random_probe(buf,len)`・`clock_probe(id,result_ptr)`
+  エクスポート（個別検証用）に加え、`_start`の末尾でも同じ2つを呼び
+  stdoutへ生バイトのまま書き出す（実機確認用、`-s out`必須）。
+- `sandbox/policy_test.go`に**回帰防止の要**を追加: 既定で`random_get`が
+  実行のたびに異なるバイト列を返すこと、既定で`clock_time_get(realtime)`が
+  `time.Now()`の5秒以内に一致すること、`-x random`で`random_get`が
+  エラーになること、`-x time`で返る時刻が`time.Now()`から1時間以上
+  乖離していること（＝実時刻ではなくwazeroの偽時計）を固定した。
+- **実際の動作確認**: 実機で`-s out`付きスタンプ実行の生バイト出力を
+  `python3`でデコードし、既定では乱数が実行のたびに変わり時刻が
+  実時刻（2026年）に一致すること、`-x random`では乱数が常に全0バイトに
+  なること、`-x time`では時刻が2022-01-01T00:00:00Zになることを確認した。
+  `docs/usage/execsandbox.md`の`-x, --deny`節に、`-x time`が
+  「取得を遮断」ではなく「wazeroの偽時計を見せ続ける」という実効的な
+  意味になる旨を追記した。`go build`/`go vet`/`gofmt -l`/`go test`/
+  `make race`/`make check`/`make test`すべてgreen。
+- `.claude/rules/wazero-quirks.md`の新設は計画通りStep 8で提案する
+  （`sandbox/policy.go`のコメントに「Step 8で新設予定」と記載済み）。
 
 Step 5（ファイルシステム〔`-v`〕とメモリ上限〔`-m`〕）を完了した。
 

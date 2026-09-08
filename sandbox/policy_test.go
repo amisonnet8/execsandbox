@@ -1,7 +1,8 @@
 package sandbox
 
-// フェーズ②Step4: Policy.ModuleConfig()が実際にwazeroへ環境変数・引数・
-// stdioを配線することを、testdata/modules/wasi_probe.wasm経由で確認する。
+// フェーズ②Step4〜6: Policy.ModuleConfig()/RuntimeConfig()が実際にwazeroへ
+// 環境変数・引数・stdio・ファイルシステム・メモリ上限・乱数・時刻を
+// 配線することを、testdata/modules/{wasi_probe,mem_hog}.wasm経由で確認する。
 
 import (
 	"bytes"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
@@ -267,5 +269,130 @@ func TestPolicy_argcAndEnvironcProbes(t *testing.T) {
 	}
 	if got, want := environc[0], uint64(2); got != want {
 		t.Errorf("environc_probe() = %d, want %d", got, want)
+	}
+}
+
+// callRandomProbe はwasi_probe.wasmのrandom_probe(buf,len)を呼び、
+// (errno, 読み取れたバイト列)を返す。
+func callRandomProbe(t *testing.T, ctx context.Context, mod api.Module, n int) (int32, []byte) {
+	t.Helper()
+	const bufOff = 30000
+
+	res, err := mod.ExportedFunction("random_probe").Call(ctx, uint64(bufOff), uint64(n))
+	if err != nil {
+		t.Fatalf("call random_probe: %v", err)
+	}
+	buf, ok := mod.Memory().Read(bufOff, uint32(n))
+	if !ok {
+		t.Fatalf("read back random buffer from guest memory")
+	}
+	return int32(res[0]), append([]byte(nil), buf...)
+}
+
+// callClockProbe はwasi_probe.wasmのclock_probe(id,result_ptr)を呼び、
+// (errno, ナノ秒のタイムスタンプ)を返す。id=0はrealtime、1はmonotonic。
+func callClockProbe(t *testing.T, ctx context.Context, mod api.Module, id uint32) (int32, uint64) {
+	t.Helper()
+	const resultOff = 30100
+
+	res, err := mod.ExportedFunction("clock_probe").Call(ctx, uint64(id), uint64(resultOff))
+	if err != nil {
+		t.Fatalf("call clock_probe: %v", err)
+	}
+	ns, ok := mod.Memory().ReadUint64Le(resultOff)
+	if !ok {
+		t.Fatalf("read back clock timestamp from guest memory")
+	}
+	return int32(res[0]), ns
+}
+
+// -x未指定（既定）では乱数が本物のcrypto/rand相当であること（毎回異なる
+// バイト列）を固定する。wazeroの既定は決定的な乱数であり、これを
+// 見落とすと「-x random」を指定しなくても常に同じバイト列が返る
+// （PLAN.md「wazeroの既定が仕様と逆転する箇所」）。
+func TestPolicy_random_defaultIsNotDeterministic(t *testing.T) {
+	ctx, rt, wasmBytes := newWASIRuntime(t)
+
+	p := Policy{}
+	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig().WithStartFunctions())
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	errno1, got1 := callRandomProbe(t, ctx, mod, 16)
+	if errno1 != 0 {
+		t.Fatalf("random_probe() errno = %d, want 0", errno1)
+	}
+	errno2, got2 := callRandomProbe(t, ctx, mod, 16)
+	if errno2 != 0 {
+		t.Fatalf("random_probe() errno = %d, want 0", errno2)
+	}
+
+	if bytes.Equal(got1, got2) {
+		t.Errorf("two random_probe() calls returned the same bytes %x, want different (wazero's default deterministic source must not leak through)", got1)
+	}
+}
+
+// -x randomは常にエラー(EIO)にする。wazeroの決定的乱数をそのまま「遮断」
+// として使うと、遮断のつもりが予測可能な乱数の許可にすり替わってしまう。
+func TestPolicy_random_denyReturnsError(t *testing.T) {
+	ctx, rt, wasmBytes := newWASIRuntime(t)
+
+	p := Policy{Deny: Deny{Random: true}}
+	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig().WithStartFunctions())
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	errno, _ := callRandomProbe(t, ctx, mod, 16)
+	if errno == 0 {
+		t.Error("random_probe() errno = 0, want a nonzero errno (-x random must block random_get)")
+	}
+}
+
+// -x未指定（既定）では実時刻(clock_time_get realtime)がtime.Now()と近い
+// 値になること（wazeroの既定は偽の単調時計であり、何もしなければ仕様
+// (§8.2 既定許可)と逆転する）。
+func TestPolicy_clock_defaultIsRealWalltime(t *testing.T) {
+	ctx, rt, wasmBytes := newWASIRuntime(t)
+
+	p := Policy{}
+	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig().WithStartFunctions())
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	errno, ns := callClockProbe(t, ctx, mod, 0)
+	if errno != 0 {
+		t.Fatalf("clock_probe(realtime) errno = %d, want 0", errno)
+	}
+
+	got := time.Unix(0, int64(ns))
+	if diff := time.Since(got); diff < -5*time.Second || diff > 5*time.Second {
+		t.Errorf("clock_probe(realtime) = %v, want within 5s of now (%v)", got, time.Now())
+	}
+}
+
+// -x timeはWASIのclock_time_getにエラー経路がないため、「取得を遮断」を
+// 表現できない。代わりにwazeroの既定（偽の単調時計、2022-01-01T00:00:00Z付近から始まり
+// 読むたびに1msずつ進むだけ）のままにすることで、少なくとも実時刻を
+// 見せないという実効的な効果を確認する。
+func TestPolicy_clock_denyKeepsTheFakeClock(t *testing.T) {
+	ctx, rt, wasmBytes := newWASIRuntime(t)
+
+	p := Policy{Deny: Deny{Time: true}}
+	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig().WithStartFunctions())
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	errno, ns := callClockProbe(t, ctx, mod, 0)
+	if errno != 0 {
+		t.Fatalf("clock_probe(realtime) errno = %d, want 0 (WASI has no error path for a denied clock)", errno)
+	}
+
+	got := time.Unix(0, int64(ns))
+	if diff := time.Since(got); diff < time.Hour {
+		t.Errorf("clock_probe(realtime) = %v, want far in the past (wazero's fake walltime, not the real time %v)", got, time.Now())
 	}
 }
