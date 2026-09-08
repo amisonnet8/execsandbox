@@ -1,12 +1,14 @@
 package sandbox
 
-// フェーズ②Step4〜6: Policy.ModuleConfig()/RuntimeConfig()が実際にwazeroへ
-// 環境変数・引数・stdio・ファイルシステム・メモリ上限・乱数・時刻を
-// 配線することを、testdata/modules/{wasi_probe,mem_hog}.wasm経由で確認する。
+// フェーズ②Step4〜7: Policy.ModuleConfig()/RuntimeConfig()が実際にwazeroへ
+// 環境変数・引数・stdio・ファイルシステム・メモリ上限・乱数・時刻・
+// タイムアウトを配線することを、
+// testdata/modules/{wasi_probe,mem_hog,blocker}.wasm経由で確認する。
 
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -15,6 +17,7 @@ import (
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
+	"github.com/tetratelabs/wazero/sys"
 )
 
 func newWASIRuntime(t *testing.T) (context.Context, wazero.Runtime, []byte) {
@@ -394,5 +397,62 @@ func TestPolicy_clock_denyKeepsTheFakeClock(t *testing.T) {
 	got := time.Unix(0, int64(ns))
 	if diff := time.Since(got); diff < time.Hour {
 		t.Errorf("clock_probe(realtime) = %v, want far in the past (wazero's fake walltime, not the real time %v)", got, time.Now())
+	}
+}
+
+// フェーズ②Step7: Policy{Timeout: ...}.RuntimeConfig()が実際に
+// WithCloseOnContextDoneを有効化し、recvでブロックしているゲストを
+// deadline経過で強制終了できることを確認する。Step1のスパイク検証
+// （timeout_spike_test.go）は生のwazero APIを直接使ったが、こちらは
+// main.goが実際に呼ぶPolicy経由の配線を検証する。
+func TestPolicy_runtimeConfig_timeoutInterruptsBlockingGuest(t *testing.T) {
+	ctx := context.Background()
+
+	const deadline = 200 * time.Millisecond
+	const safetyLimit = 5 * time.Second
+
+	p := Policy{Timeout: deadline, MemoryLimitBytes: 16 * wasmPageSize}
+	rtConfig, err := p.RuntimeConfig()
+	if err != nil {
+		t.Fatalf("RuntimeConfig: %v", err)
+	}
+
+	rt := wazero.NewRuntimeWithConfig(ctx, rtConfig)
+	defer rt.Close(ctx)
+
+	mailbox := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
+	if _, err := RegisterHostModule(ctx, rt, HostConfig{
+		Mailbox:  mailbox,
+		MaxFrame: 1024,
+		Log:      NewLogger(&bytes.Buffer{}, false),
+	}); err != nil {
+		t.Fatalf("RegisterHostModule: %v", err)
+	}
+
+	wasmBytes, err := os.ReadFile("../testdata/modules/blocker.wasm")
+	if err != nil {
+		t.Fatalf("read blocker.wasm: %v", err)
+	}
+
+	runCtx, cancel := context.WithTimeout(ctx, deadline)
+	defer cancel()
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := rt.InstantiateWithConfig(runCtx, wasmBytes, wazero.NewModuleConfig())
+		result <- err
+	}()
+
+	select {
+	case err := <-result:
+		var exitErr *sys.ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf("err = %v (%T), want *sys.ExitError", err, err)
+		}
+		if exitErr.ExitCode() != sys.ExitCodeDeadlineExceeded {
+			t.Errorf("ExitCode() = %#x, want ExitCodeDeadlineExceeded (%#x)", exitErr.ExitCode(), sys.ExitCodeDeadlineExceeded)
+		}
+	case <-time.After(safetyLimit):
+		t.Fatalf("InstantiateWithConfig did not return within the safety limit (%v)", safetyLimit)
 	}
 }

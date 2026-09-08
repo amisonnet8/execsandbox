@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/tetratelabs/wazero"
 )
@@ -52,6 +53,8 @@ type Policy struct {
 	Deny   Deny
 	// MemoryLimitBytes はWASM線形メモリの上限（-m/--mem-limit）。バイト単位。
 	MemoryLimitBytes int64
+	// Timeout は実行時間の上限（-t/--timeout）。0はタイムアウトなし（既定）。
+	Timeout time.Duration
 
 	Stdin  io.Reader
 	Stdout io.Writer
@@ -167,5 +170,15 @@ func (p Policy) RuntimeConfig() (wazero.RuntimeConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid -m/--mem-limit: %w", err)
 	}
-	return wazero.NewRuntimeConfig().WithMemoryLimitPages(pages), nil
+	cfg := wazero.NewRuntimeConfig().WithMemoryLimitPages(pages)
+
+	// -t未指定（Timeout==0）ならWithCloseOnContextDoneを呼ばない。フェーズ②
+	// Step1のスパイク検証で確認済みの通り、これを有効にするとゲスト実行に
+	// 渡したcontextがキャンセルされた際にモジュールを強制的にクローズする
+	// ため、タイムアウトを使わない起動でも常時有効化しておく理由はない。
+	if p.Timeout > 0 {
+		cfg = cfg.WithCloseOnContextDone(true)
+	}
+
+	return cfg, nil
 }

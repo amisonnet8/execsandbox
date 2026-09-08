@@ -188,7 +188,61 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 
 ## 現在地
 
-**フェーズ②/ Step 6 完了 → Step 7（未着手）**
+**フェーズ②/ Step 7 完了 → Step 8（未着手）**
+
+Step 7（`-t/--timeout`の本実装と終了コード整理）を完了した。
+
+- `sandbox/policy.go`: `Policy.Timeout time.Duration`を追加。`RuntimeConfig()`
+  は`Timeout > 0`のときだけ`WithCloseOnContextDone(true)`を呼ぶ
+  （タイムアウトを使わない起動では常時有効化しておく理由がないため）。
+- `main.go`: `run(opts *options) (exitCode int, err error)`へシグネチャ変更
+  （従来は`error`のみ）。ゲスト実行（`InstantiateWithConfig`）にのみ、
+  `-t`指定時は`context.WithTimeout(ctx, opts.timeout)`由来のcontextを渡す
+  （ホスト関数登録・リスナー起動は`context.Background()`側で行い影響しない）。
+  戻りエラーを`errors.As`で`*sys.ExitError`と判定し、
+  `ExitCodeDeadlineExceeded`ならLogger経由で`"execution timed out after
+  <duration>"`をログしexitCode=**124**（Unixの`timeout(1)`コマンドに倣った
+  慣習。終了コード体系は仕様書を変更せず実装コメントに留める、確認済み
+  方針）で終了。それ以外の`*sys.ExitError`（ゲスト自身の`proc_exit`等）は
+  `execsandbox:`接頭辞を付けずそのままプロセスの終了コードとして伝える
+  （ホスト側のエラーではないため）。それ以外のエラー（トラップ等）は
+  従来通り`execsandbox:`接頭辞＋exit 1。
+  - **タイムアウトのログはLogger経由とし`-q`で抑制されるようにした**
+    （tail-drop・フレーム長超過と同じ「動的に発生しうるイベント」として
+    扱う。起動を中止する類のエラーではないため）。実機で`-t -q`により
+    ログが消え、終了コード124は変わらないことを確認した。
+- **実装中に判明した重要な挙動**: `-t`はコンテキストキャンセルを
+  `InstantiateWithConfig`に渡すだけなので、**ゲストの`recv`呼び出しが
+  ちょうどブロック中だった場合、`recv`自身がそのcontextの`Done()`を見て
+  自発的に`-1`（タイムアウト相当）を返し、ゲストがそれを見て正常終了
+  すれば、`WithCloseOnContextDone`による強制終了（trap）は一度も発動せず
+  exitCode 0の正常終了になる。** 例えば`host_probe.wasm`（1回`recv`して
+  結果を見て`send`するかどうか決める）は、メッセージが来ないまま`-t`の
+  期限を迎えても穏やかに終了する。一方`blocker.wasm`（`recv`の戻り値を
+  見ずに無限ループで呼び直す）は、`recv`が`-1`を返してもループが止まらない
+  ため、`WithCloseOnContextDone`による強制終了（`ExitCodeDeadlineExceeded`、
+  exitCode 124）に頼ることになる。**これはSDK設計・ゲスト実装上望ましい
+  性質**（律儀に`recv`の戻り値をチェックするゲストほど、強制終了ではなく
+  自発的な終了の機会を得られる）であり、バグではないが、E2Eの検証対象
+  選びに直結する重要な発見だった（下記参照）。
+- `testdata/modules/`に新規モジュールは追加していない（Step1の
+  `blocker.wasm`/`spin_forever.wasm`を再利用）。
+- `sandbox/policy_test.go`に`TestPolicy_runtimeConfig_timeoutInterruptsBlockingGuest`
+  を追加。Step1のスパイク検証（生のwazero API）と異なり、`main.go`が実際に
+  呼ぶ`Policy.RuntimeConfig()`経由の配線を検証する。
+- `tests/e2e_timeout.sh`（新設）: **`blocker.wasm`を使う**（`host_probe.wasm`
+  では上記の理由で強制終了経路を通らないため）。`-n`も付けて起動し、
+  「1秒でexitCode 124になること」「経過時間が5秒未満であること」
+  「ソケットファイルが残らないこと」を確認する。`.github/workflows/test.yml`
+  に3OS分のステップとして追加した。
+- **実際の動作確認**: 上記`tests/e2e_timeout.sh`に加え、実機で
+  `proc_exit(42)`を呼ぶだけの最小WATモジュール（コミットしない使い捨て）を
+  スタンプして実行し、プロセスの終了コードが42になる（ゲストの終了コードが
+  ホストのエラー扱いされずそのまま伝わる）ことを確認した。`-t`を付けても
+  期限内に自発的に終わるゲストはexitCode 0のままであることも確認した。
+  `go build`/`go vet`/`gofmt -l`/`go test`/`make race`/`make check`/
+  `make test`すべてgreen。
+- 保留事項「`recv`のタイムアウト実装方式」を解決済みに更新した。
 
 Step 6（乱数・時刻〔`-x/--deny`〕。wazeroの既定が仕様と逆転する箇所）を
 完了した。
@@ -630,12 +684,14 @@ green）。次はフェーズ②（本体の作り込み：ポリシー適用・
   `wat2wasm`でコンパイルし、`.wat`ソースと`.wasm`成果物を両方コミットする
   （`.claude/rules/testing.md`「現時点のツールチェーン方針」）。`.wat`編集後は
   `make testdata`で再生成する。TinyGoは引き続き未導入（必要になった時点で追加）。
-- **`recv` のタイムアウト実装方式** — **`timeout_ms`自体の意味論はStep 3で
-  実装済み**（`context.WithTimeout`、負値=無限待ち・0=即時・正値=期限付き。
-  `sandbox/host.go`）。残る論点は、`-t/--timeout`等でプロセス全体を強制終了
-  する際に、`recv`でブロック中のゲストをどう安全に中断するか（wazero側の
-  コンテキストキャンセルとの連携）。これはフェーズ②で`-t`を実装する際に
-  確認する。
+- **`recv` のタイムアウト実装方式** — **解決済み（フェーズ②Step 1で機構を
+  確定、Step 7で実装完了）。** `timeout_ms`自体の意味論はStep 3で実装済み
+  （`context.WithTimeout`、負値=無限待ち・0=即時・正値=期限付き。
+  `sandbox/host.go`）。`-t/--timeout`によるプロセス全体の強制終了は、
+  `wazero.RuntimeConfig.WithCloseOnContextDone(true)`（`-t`指定時のみ有効化。
+  `sandbox/policy.go`の`RuntimeConfig()`）とゲスト実行への
+  `context.WithTimeout`の組み合わせで実現した（詳細はPLAN.md「現在地」の
+  Step 7の記録を参照）。
 - **バージョン埋め込み** — ExecDBは `-ldflags -X main.version=` を使っていた。
   ExecSandboxでは本体とビルダーの2つにバージョンがあり、さらに生成物が
   「どのバージョンの本体でスタンプされたか」を持つ。フッターのversionフィールドと

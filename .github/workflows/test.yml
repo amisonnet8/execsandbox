@@ -40,6 +40,12 @@ jobs:
         shell: bash
         run: bash tests/e2e_basic.sh
 
+      # フェーズ②Step 7: -t/--timeoutが実際にプロセスを強制終了できることを
+      # 3OSで確認する（WithCloseOnContextDoneの挙動がOSに依存しないか）。
+      - name: e2e (-t/--timeout force-kill)
+        shell: bash
+        run: bash tests/e2e_timeout.sh
+
   # -raceはcgoを要求するため本体の「pure Go・CGO_ENABLED=0」方針とは別枠で扱う
   # （.claude/rules/testing.md「-raceの運用方針」）。windows-latestにはCコンパイラが
   # 標準で入っていないため対象から外す。

@@ -83,10 +83,15 @@ func (cfg HostConfig) sendFunc(frameLog *rateLimitedCounter) func(ctx context.Co
 
 // recv(meta_ptr, buf_ptr, buf_cap, timeout_ms) -> i32。仕様書§5.3。
 //
-// フェーズ①Step3時点ではtimeout_msの意味論（負値=無限待ち、0=即時、
-// 正値=期限付き）はすべて実装済みだが、外部からの強制キャンセル
-// （-t等によるctx経由の中断）との連携はフェーズ②で扱う
-// （PLAN.md「保留事項」参照）。
+// timeout_msの意味論（負値=無限待ち、0=即時、正値=期限付き）は
+// context.WithTimeoutで実装している。-t/--timeoutによるプロセス全体の
+// 強制終了は、ここに渡ってくるctx自体が-t由来のdeadlineを持つ（フェーズ②
+// Step7、cmd/execsandbox/main.go）ため、このrecvFuncを変更する必要はない。
+// timeout_ms=-1（無限待ち）でブロック中に-tの期限が来た場合、下のselectが
+// ctx.Done()を検知して-1（タイムアウト相当）を返す。ゲストがその戻り値を
+// 律儀にチェックしていれば自発的に終了でき、チェックせず呼び直し続ける
+// ゲストは、wazeroのWithCloseOnContextDoneによる強制終了（trap）に頼る
+// ことになる（PLAN.md「現在地」Step7の記録を参照）。
 func (cfg HostConfig) recvFunc() func(ctx context.Context, mod api.Module, metaPtr, bufPtr, bufCap uint32, timeoutMs int32) int32 {
 	return func(ctx context.Context, mod api.Module, metaPtr, bufPtr, bufCap uint32, timeoutMs int32) int32 {
 		memSize := uint64(mod.Memory().Size())
