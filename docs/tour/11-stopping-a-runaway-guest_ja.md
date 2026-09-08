@@ -1,5 +1,3 @@
-English version: [11-stopping-a-runaway-guest.md](11-stopping-a-runaway-guest.md)
-
 # 11. 暴走を止める
 
 ここからはSDKを使わない、ExecSandbox本体のポリシー機能だけを見る4つの章
@@ -33,3 +31,5 @@ real	0m1.010s
 
 ---
 [← 前: 10. イベントの種類を見分ける](10-telling-events-apart_ja.md) | [目次](README_ja.md) | [次: 12. メモリに上限をかける →](12-capping-memory_ja.md)
+
+English version: [11-stopping-a-runaway-guest.md](11-stopping-a-runaway-guest.md)

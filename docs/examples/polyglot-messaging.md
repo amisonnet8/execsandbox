@@ -1,5 +1,3 @@
-日本語版: [polyglot-messaging_ja.md](polyglot-messaging_ja.md)
-
 # polyglot-messaging — interconnecting TinyGo and Rust
 
 ExecSandbox's WASM ABI (spec §5) claims to be language-agnostic. We
@@ -64,3 +62,7 @@ kind=0 data=hello from execsandbox-sdk
   two as-is, as long as it correctly `import`s the four functions
   `send`/`recv`/`conn_write`/`max_frame` and follows the layout in
   [spec §5](../spec/execsandbox_spec.md).
+
+---
+
+日本語版: [polyglot-messaging_ja.md](polyglot-messaging_ja.md)

@@ -1,5 +1,3 @@
-English version: [09-accepting-external-connections.md](09-accepting-external-connections.md)
-
 # 9. 外部から接続を受ける
 
 サンドボックス同士だけでなく、ExecSandboxの外（TCPクライアントなど）からも
@@ -44,3 +42,5 @@ hello via bash
 
 ---
 [← 前: 8. 送信は届くことを保証しない](08-delivery-is-not-guaranteed_ja.md) | [目次](README_ja.md) | [次: 10. イベントの種類を見分ける →](10-telling-events-apart_ja.md)
+
+English version: [09-accepting-external-connections.md](09-accepting-external-connections.md)

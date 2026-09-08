@@ -1,5 +1,3 @@
-English version: [05-args-and-env.md](05-args-and-env.md)
-
 # 5. 引数と環境変数
 
 `hello-wasi`は自分の引数（`os.Args`）と環境変数`GREETING`も表示する。これを
@@ -30,3 +28,5 @@ GREETING=konnichiwa
 
 ---
 [← 前: 4. 出力を見る](04-seeing-output_ja.md) | [目次](README_ja.md) | [次: 6. メールボックスという考え方 →](06-the-mailbox-idea_ja.md)
+
+English version: [05-args-and-env.md](05-args-and-env.md)

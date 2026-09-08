@@ -1,5 +1,3 @@
-日本語版: [08-delivery-is-not-guaranteed_ja.md](08-delivery-is-not-guaranteed_ja.md)
-
 # 8. Delivery Is Not Guaranteed
 
 Let's run just `nodeA` (the sender) from the previous chapter, without
@@ -30,3 +28,5 @@ design an ACK message at the application level.
 
 ---
 [← Previous: 7. Connecting Two Sandboxes](07-connecting-two-sandboxes.md) | [Index](README.md) | [Next: 9. Accepting External Connections →](09-accepting-external-connections.md)
+
+日本語版: [08-delivery-is-not-guaranteed_ja.md](08-delivery-is-not-guaranteed_ja.md)

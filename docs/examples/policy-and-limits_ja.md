@@ -1,5 +1,3 @@
-English version: [policy-and-limits.md](policy-and-limits.md)
-
 # policy-and-limits — リソース制限とケイパビリティ
 
 `-v`（ファイルマウント）・`-m`（メモリ上限）・`-t`（タイムアウト）・`-x`
@@ -133,3 +131,7 @@ clock: 2022-01-01T00:00:00Z
 遮断できているが、その先でゲストのランタイムがエラーをどう扱うかは
 ゲスト側の実装次第、という点を示す実例になっている。Rust版SDKや生のABIを
 直接叩くゲストでは異なる挙動になりうる。
+
+---
+
+English version: [policy-and-limits.md](policy-and-limits.md)

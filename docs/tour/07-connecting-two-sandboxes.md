@@ -1,5 +1,3 @@
-日本語版: [07-connecting-two-sandboxes_ja.md](07-connecting-two-sandboxes_ja.md)
-
 # 7. Connecting Two Sandboxes
 
 From here on we use the TinyGo SDK
@@ -53,3 +51,5 @@ decided by the launch-time `-d 1=nodeB`. The destination can be rewired
 
 ---
 [← Previous: 6. The Mailbox Idea](06-the-mailbox-idea.md) | [Index](README.md) | [Next: 8. Delivery Is Not Guaranteed →](08-delivery-is-not-guaranteed.md)
+
+日本語版: [07-connecting-two-sandboxes_ja.md](07-connecting-two-sandboxes_ja.md)

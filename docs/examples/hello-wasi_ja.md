@@ -1,5 +1,3 @@
-English version: [hello-wasi.md](hello-wasi.md)
-
 # hello-wasi — 最小構成
 
 ExecSandbox SDKすら使わない、最小のゲストモジュール。WASI標準の`fmt`/`os`
@@ -72,3 +70,7 @@ GREETING=konnichiwa
   概念がないため）。
 - **`-e KEY=VALUE`** は指定した環境変数だけをゲストに見せる。ホスト側の
   環境変数がそのまま引き継がれることはない。
+
+---
+
+English version: [hello-wasi.md](hello-wasi.md)

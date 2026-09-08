@@ -1,5 +1,3 @@
-English version: [02-install-and-first-run.md](02-install-and-first-run.md)
-
 # 2. インストールと最初の実行
 
 ## ビルダーを入手する
@@ -40,3 +38,5 @@ $ ./mydb -s out -- hello
 
 ---
 [← 前: 1. ExecSandboxとは](01-what-is-execsandbox_ja.md) | [目次](README_ja.md) | [次: 3. 既定では何もできない →](03-nothing-by-default_ja.md)
+
+English version: [02-install-and-first-run.md](02-install-and-first-run.md)

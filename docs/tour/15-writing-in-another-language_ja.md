@@ -1,5 +1,3 @@
-English version: [15-writing-in-another-language.md](15-writing-in-another-language.md)
-
 # 15. 複数の言語で書く
 
 ExecSandboxのWASM ABI（仕様書§5）は言語非依存を謳っている。ここまで
@@ -36,3 +34,5 @@ TinyGo（GCあり）とRust（GCなし）という対照的なメモリモデル
 
 ---
 [← 前: 14. 乱数・時刻を遮断する](14-denying-random-and-time_ja.md) | [目次](README_ja.md) | [次: 16. 次に読むもの →](16-where-to-go-next_ja.md)
+
+English version: [15-writing-in-another-language.md](15-writing-in-another-language.md)

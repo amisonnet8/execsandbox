@@ -1,5 +1,3 @@
-日本語版: [11-stopping-a-runaway-guest_ja.md](11-stopping-a-runaway-guest_ja.md)
-
 # 11. Stopping a Runaway Guest
 
 From here on, we move into four chapters that use no SDK at all, looking
@@ -35,3 +33,5 @@ stopped even if the guest doesn't cooperate" is an important property.
 
 ---
 [← Previous: 10. Telling Events Apart](10-telling-events-apart.md) | [Index](README.md) | [Next: 12. Capping Memory →](12-capping-memory.md)
+
+日本語版: [11-stopping-a-runaway-guest_ja.md](11-stopping-a-runaway-guest_ja.md)

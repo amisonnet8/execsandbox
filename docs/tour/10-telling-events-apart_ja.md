@@ -1,5 +1,3 @@
-English version: [10-telling-events-apart.md](10-telling-events-apart.md)
-
 # 10. イベントの種類を見分ける
 
 前章のechoが`msg.Kind == execsandbox.KindConnData`だけを見ていたことに
@@ -29,3 +27,5 @@ English version: [10-telling-events-apart.md](10-telling-events-apart.md)
 
 ---
 [← 前: 9. 外部から接続を受ける](09-accepting-external-connections_ja.md) | [目次](README_ja.md) | [次: 11. 暴走を止める →](11-stopping-a-runaway-guest_ja.md)
+
+English version: [10-telling-events-apart.md](10-telling-events-apart.md)

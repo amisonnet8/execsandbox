@@ -1,5 +1,3 @@
-日本語版: [03-nothing-by-default_ja.md](03-nothing-by-default_ja.md)
-
 # 3. Nothing by Default
 
 ExecSandbox's capabilities are **denied by default**. Unless you make it
@@ -48,3 +46,5 @@ it up in the next chapter.
 
 ---
 [← Previous: 2. Installing and Your First Run](02-install-and-first-run.md) | [Index](README.md) | [Next: 4. Seeing Output →](04-seeing-output.md)
+
+日本語版: [03-nothing-by-default_ja.md](03-nothing-by-default_ja.md)

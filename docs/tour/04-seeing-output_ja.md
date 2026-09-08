@@ -1,5 +1,3 @@
-English version: [04-seeing-output.md](04-seeing-output.md)
-
 # 4. 出力を見る
 
 前の章の`hello-wasi`に`-s out`（`--stdio out`）を付けて、標準出力を
@@ -28,3 +26,5 @@ ExecSandbox自身も診断ログを出すことがあるが、それは`execsand
 
 ---
 [← 前: 3. 既定では何もできない](03-nothing-by-default_ja.md) | [目次](README_ja.md) | [次: 5. 引数と環境変数 →](05-args-and-env_ja.md)
+
+English version: [04-seeing-output.md](04-seeing-output.md)

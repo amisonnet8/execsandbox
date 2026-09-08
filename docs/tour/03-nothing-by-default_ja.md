@@ -1,5 +1,3 @@
-English version: [03-nothing-by-default.md](03-nothing-by-default.md)
-
 # 3. 既定では何もできない
 
 ExecSandboxのケイパビリティは**既定拒否**である。起動時オプションで
@@ -45,3 +43,5 @@ $ echo $?
 
 ---
 [← 前: 2. インストールと最初の実行](02-install-and-first-run_ja.md) | [目次](README_ja.md) | [次: 4. 出力を見る →](04-seeing-output_ja.md)
+
+English version: [03-nothing-by-default.md](03-nothing-by-default.md)

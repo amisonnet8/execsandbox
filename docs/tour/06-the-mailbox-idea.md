@@ -1,5 +1,3 @@
-日本語版: [06-the-mailbox-idea_ja.md](06-the-mailbox-idea_ja.md)
-
 # 6. The Mailbox Idea
 
 Every ExecSandbox instance holds one **mailbox** of its own — the same
@@ -21,3 +19,5 @@ Next, we'll use this mechanism to connect two sandboxes.
 
 ---
 [← Previous: 5. Arguments and Environment Variables](05-args-and-env.md) | [Index](README.md) | [Next: 7. Connecting Two Sandboxes →](07-connecting-two-sandboxes.md)
+
+日本語版: [06-the-mailbox-idea_ja.md](06-the-mailbox-idea_ja.md)

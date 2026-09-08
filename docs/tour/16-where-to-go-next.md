@@ -1,5 +1,3 @@
-日本語版: [16-where-to-go-next_ja.md](16-where-to-go-next_ja.md)
-
 # 16. Where to Go Next
 
 That's the end of the tour. By now you've touched, hands-on, all three of
@@ -25,3 +23,5 @@ Thanks for taking the tour.
 
 ---
 [← Previous: 15. Writing in Another Language](15-writing-in-another-language.md) | [Index](README.md)
+
+日本語版: [16-where-to-go-next_ja.md](16-where-to-go-next_ja.md)

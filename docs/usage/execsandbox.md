@@ -1,5 +1,3 @@
-日本語版: [execsandbox_ja.md](execsandbox_ja.md)
-
 # execsandbox — launch-time options for the generated executable
 
 The launch-time options for the executable produced by `execsandbox-build`.
@@ -413,3 +411,7 @@ $ execsandbox -m bogus
 execsandbox: invalid value "bogus" for flag -m: invalid size "bogus": must start with a number
 execsandbox: run with --help for usage
 ```
+
+---
+
+日本語版: [execsandbox_ja.md](execsandbox_ja.md)

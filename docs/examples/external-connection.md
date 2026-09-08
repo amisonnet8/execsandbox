@@ -1,5 +1,3 @@
-日本語版: [external-connection_ja.md](external-connection_ja.md)
-
 # external-connection — echoing back an external connection
 
 Opens a listener outside of ExecSandbox (`-l/--listen`) and writes back
@@ -63,3 +61,7 @@ hello via bash
   sandbox-to-sandbox messaging
   ([`sandbox-messaging.md`](sandbox-messaging.md)).
 - The source address can't be obtained (a limitation noted in spec §4.4).
+
+---
+
+日本語版: [external-connection_ja.md](external-connection_ja.md)

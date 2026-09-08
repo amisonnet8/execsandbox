@@ -1,5 +1,3 @@
-English version: [README.md](README.md)
-
 # ツアー
 
 ExecSandboxを初めて触る人向けの、体験型の入門ガイド。前の章を前提に次へ
@@ -42,3 +40,7 @@ Go](https://go.dev/tour/)のように、1章=1つの小さな概念）。オプ�
 ---
 
 [1. ExecSandboxとは →](01-what-is-execsandbox_ja.md)から始める。
+
+---
+
+English version: [README.md](README.md)

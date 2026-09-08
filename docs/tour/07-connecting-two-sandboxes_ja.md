@@ -1,5 +1,3 @@
-English version: [07-connecting-two-sandboxes.md](07-connecting-two-sandboxes.md)
-
 # 7. 2つのサンドボックスをつなぐ
 
 ここからはTinyGo版SDK（[`execsandbox-sdk`](https://github.com/amisonnet8/execsandbox-sdk)）
@@ -50,3 +48,5 @@ kind=0 data=hello from execsandbox-sdk
 
 ---
 [← 前: 6. メールボックスという考え方](06-the-mailbox-idea_ja.md) | [目次](README_ja.md) | [次: 8. 送信は届くことを保証しない →](08-delivery-is-not-guaranteed_ja.md)
+
+English version: [07-connecting-two-sandboxes.md](07-connecting-two-sandboxes.md)

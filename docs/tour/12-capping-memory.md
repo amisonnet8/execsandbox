@@ -1,5 +1,3 @@
-日本語版: [12-capping-memory_ja.md](12-capping-memory_ja.md)
-
 # 12. Capping Memory
 
 `-m/--mem-limit` sets the ceiling on the guest's WASM linear memory. The
@@ -27,3 +25,5 @@ takes the whole host down with it.
 
 ---
 [← Previous: 11. Stopping a Runaway Guest](11-stopping-a-runaway-guest.md) | [Index](README.md) | [Next: 13. Exposing Files →](13-exposing-files.md)
+
+日本語版: [12-capping-memory_ja.md](12-capping-memory_ja.md)

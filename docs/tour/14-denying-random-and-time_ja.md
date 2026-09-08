@@ -1,5 +1,3 @@
-English version: [14-denying-random-and-time.md](14-denying-random-and-time.md)
-
 # 14. 乱数・時刻を遮断する
 
 これまでの章はすべて「既定拒否、明示的に許可する」だった。`-x/--deny`は
@@ -42,3 +40,5 @@ ABI境界（`random_get`）では確実に遮断できているのだが、こ�
 
 ---
 [← 前: 13. ファイルを見せる](13-exposing-files_ja.md) | [目次](README_ja.md) | [次: 15. 複数の言語で書く →](15-writing-in-another-language_ja.md)
+
+English version: [14-denying-random-and-time.md](14-denying-random-and-time.md)

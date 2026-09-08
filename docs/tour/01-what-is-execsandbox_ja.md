@@ -1,5 +1,3 @@
-English version: [01-what-is-execsandbox.md](01-what-is-execsandbox.md)
-
 # 1. ExecSandboxとは
 
 ExecSandboxは、WASM実行ランタイムとWASMモジュールを1つの実行ファイルに
@@ -24,3 +22,5 @@ ExecSandboxは、WASM実行ランタイムとWASMモジュールを1つの実行
 
 ---
 [目次](README_ja.md) | [次: 2. インストールと最初の実行 →](02-install-and-first-run_ja.md)
+
+English version: [01-what-is-execsandbox.md](01-what-is-execsandbox.md)

@@ -1,5 +1,3 @@
-日本語版: [01-what-is-execsandbox_ja.md](01-what-is-execsandbox_ja.md)
-
 # 1. What Is ExecSandbox?
 
 ExecSandbox is a portable, zero-setup sandboxed execution tool that bundles
@@ -25,3 +23,5 @@ the way, or revisit only the chapters you care about.
 
 ---
 [Index](README.md) | [Next: 2. Installing and Your First Run →](02-install-and-first-run.md)
+
+日本語版: [01-what-is-execsandbox_ja.md](01-what-is-execsandbox_ja.md)

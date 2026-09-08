@@ -1,5 +1,3 @@
-English version: [12-capping-memory.md](12-capping-memory.md)
-
 # 12. メモリに上限をかける
 
 `-m/--mem-limit`は、ゲストのWASM線形メモリの上限を決める。以下のゲストは
@@ -25,3 +23,5 @@ execsandbox: run WASM module: module[main] function[_start] failed: wasm error: 
 
 ---
 [← 前: 11. 暴走を止める](11-stopping-a-runaway-guest_ja.md) | [目次](README_ja.md) | [次: 13. ファイルを見せる →](13-exposing-files_ja.md)
+
+English version: [12-capping-memory.md](12-capping-memory.md)

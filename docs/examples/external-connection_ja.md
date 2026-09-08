@@ -1,5 +1,3 @@
-English version: [external-connection.md](external-connection.md)
-
 # external-connection — 外部接続をエコーバックする
 
 ExecSandboxの外へ待ち受けを開き（`-l/--listen`）、受けたデータをそのまま
@@ -59,3 +57,7 @@ hello via bash
   ExecSandboxインスタンスを複数起動し、サンドボックス間メッセージング
   （[`sandbox-messaging_ja.md`](sandbox-messaging_ja.md)）で繋ぐ。
 - 接続元アドレスは取得できない（仕様書§4.4の制限）。
+
+---
+
+English version: [external-connection.md](external-connection.md)

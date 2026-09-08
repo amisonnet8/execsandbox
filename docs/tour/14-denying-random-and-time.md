@@ -1,5 +1,3 @@
-日本語版: [14-denying-random-and-time_ja.md](14-denying-random-and-time_ja.md)
-
 # 14. Denying Randomness and Time
 
 Every chapter so far has followed "deny by default, allow explicitly."
@@ -46,3 +44,5 @@ language's implementation** — that's the lesson of this chapter.
 
 ---
 [← Previous: 13. Exposing Files](13-exposing-files.md) | [Index](README.md) | [Next: 15. Writing in Another Language →](15-writing-in-another-language.md)
+
+日本語版: [14-denying-random-and-time_ja.md](14-denying-random-and-time_ja.md)

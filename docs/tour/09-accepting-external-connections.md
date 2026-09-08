@@ -1,5 +1,3 @@
-日本語版: [09-accepting-external-connections_ja.md](09-accepting-external-connections_ja.md)
-
 # 9. Accepting External Connections
 
 ExecSandbox can be reached not just by other sandboxes, but from outside
@@ -45,3 +43,5 @@ connection.
 
 ---
 [← Previous: 8. Delivery Is Not Guaranteed](08-delivery-is-not-guaranteed.md) | [Index](README.md) | [Next: 10. Telling Events Apart →](10-telling-events-apart.md)
+
+日本語版: [09-accepting-external-connections_ja.md](09-accepting-external-connections_ja.md)

@@ -1,5 +1,3 @@
-English version: [README.md](README.md)
-
 # ExecSandbox
 
 WASM実行ランタイムとWASMモジュールを1つの実行ファイルに封じ込める、環境構築
@@ -51,3 +49,7 @@ sha256sum -c execsandbox-build_*.sha256
 [MIT](LICENSE)。生成される実行ファイルには [wazero](https://github.com/tetratelabs/wazero)
 （Apache-2.0）のコードも含まれるため、第三者へ配布する場合は両方の表示義務が
 生じる。生成物自体が `-L, --print-licenses` で必要な文面を出力できる。
+
+---
+
+English version: [README.md](README.md)

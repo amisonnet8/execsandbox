@@ -1,5 +1,3 @@
-日本語版: [02-install-and-first-run_ja.md](02-install-and-first-run_ja.md)
-
 # 2. Installing and Your First Run
 
 ## Getting the builder
@@ -44,3 +42,5 @@ something we'll look at, one at a time, starting with the next chapter.
 
 ---
 [← Previous: 1. What Is ExecSandbox?](01-what-is-execsandbox.md) | [Index](README.md) | [Next: 3. Nothing by Default →](03-nothing-by-default.md)
+
+日本語版: [02-install-and-first-run_ja.md](02-install-and-first-run_ja.md)

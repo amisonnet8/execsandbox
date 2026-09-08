@@ -1,5 +1,3 @@
-日本語版: [README_ja.md](README_ja.md)
-
 # Tour
 
 A hands-on introductory guide for people trying ExecSandbox for the first
@@ -43,3 +41,7 @@ case, see [`docs/examples/`](../examples/).
 ---
 
 Start with [1. What Is ExecSandbox? →](01-what-is-execsandbox.md).
+
+---
+
+日本語版: [README_ja.md](README_ja.md)

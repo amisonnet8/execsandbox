@@ -1,5 +1,3 @@
-English version: [README.md](README.md)
-
 # 実例集
 
 ExecSandboxで何ができるかを、動くコードと実際のコマンド出力で示す。それぞれ
@@ -25,3 +23,7 @@ ExecSandboxで何ができるかを、動くコードと実際のコマンド出
 または[Rust](https://www.rust-lang.org/)のいずれか、あるいは両方）と、
 `execsandbox-build`が手元にあることを前提にする。ビルダー自体の入手方法は
 リポジトリ直下の[`README_ja.md`](../../README_ja.md)を参照。
+
+---
+
+English version: [README.md](README.md)

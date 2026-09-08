@@ -1,5 +1,3 @@
-日本語版: [execsandbox_spec_ja.md](execsandbox_spec_ja.md)
-
 # ExecSandbox Specification
 
 **Version**: v1 draft
@@ -1096,3 +1094,7 @@ builder.
 The WASM module's own license is entirely up to its author to choose.
 Neither MIT nor Apache-2.0 is copyleft, so the output as a whole can be
 distributed under any license, including a proprietary one.
+
+---
+
+日本語版: [execsandbox_spec_ja.md](execsandbox_spec_ja.md)

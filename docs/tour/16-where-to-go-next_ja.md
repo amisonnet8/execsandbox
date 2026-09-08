@@ -1,5 +1,3 @@
-English version: [16-where-to-go-next.md](16-where-to-go-next.md)
-
 # 16. 次に読むもの
 
 ツアーはここで終わり。ここまでで、ExecSandboxの3つの柱——単一バイナリ化・
@@ -22,3 +20,5 @@ English version: [16-where-to-go-next.md](16-where-to-go-next.md)
 
 ---
 [← 前: 15. 複数の言語で書く](15-writing-in-another-language_ja.md) | [目次](README_ja.md)
+
+English version: [16-where-to-go-next.md](16-where-to-go-next.md)

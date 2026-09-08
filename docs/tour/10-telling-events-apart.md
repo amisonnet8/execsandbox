@@ -1,5 +1,3 @@
-日本語版: [10-telling-events-apart_ja.md](10-telling-events-apart_ja.md)
-
 # 10. Telling Events Apart
 
 Did you notice that the previous chapter's echo only ever checked
@@ -33,3 +31,5 @@ the source address of a connection.
 
 ---
 [← Previous: 9. Accepting External Connections](09-accepting-external-connections.md) | [Index](README.md) | [Next: 11. Stopping a Runaway Guest →](11-stopping-a-runaway-guest.md)
+
+日本語版: [10-telling-events-apart_ja.md](10-telling-events-apart_ja.md)

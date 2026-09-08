@@ -1,5 +1,3 @@
-English version: [execsandbox_spec.md](execsandbox_spec.md)
-
 # ExecSandbox 仕様書
 
 **版**：v1 draft
@@ -934,3 +932,7 @@ wazeroのコードが含まれる。
 WASMモジュール自体のライセンスは、そのモジュールの作者が自由に選択できる。MITも
 Apache-2.0もコピーレフトではないため、生成物全体を任意のライセンス（プロプライエタリを
 含む）で配布できる。
+
+---
+
+English version: [execsandbox_spec.md](execsandbox_spec.md)

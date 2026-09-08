@@ -1,5 +1,3 @@
-日本語版: [policy-and-limits_ja.md](policy-and-limits_ja.md)
-
 # policy-and-limits — resource limits and capabilities
 
 Demonstrates `-v` (file mounting), `-m` (memory limit), `-t` (timeout), and
@@ -141,3 +139,7 @@ host's ABI boundary (`random_get`), but this is a live example showing that
 how the guest runtime handles the resulting error is entirely up to the
 guest's own implementation. Behavior may differ for the Rust SDK or a guest
 that calls the raw ABI directly.
+
+---
+
+日本語版: [policy-and-limits_ja.md](policy-and-limits_ja.md)

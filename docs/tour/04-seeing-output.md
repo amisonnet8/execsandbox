@@ -1,5 +1,3 @@
-日本語版: [04-seeing-output_ja.md](04-seeing-output_ja.md)
-
 # 4. Seeing Output
 
 Let's add `-s out` (`--stdio out`) to the previous chapter's `hello-wasi`
@@ -30,3 +28,5 @@ Keeping these two apart is the trick to reading the logs correctly.
 
 ---
 [← Previous: 3. Nothing by Default](03-nothing-by-default.md) | [Index](README.md) | [Next: 5. Arguments and Environment Variables →](05-args-and-env.md)
+
+日本語版: [04-seeing-output_ja.md](04-seeing-output_ja.md)

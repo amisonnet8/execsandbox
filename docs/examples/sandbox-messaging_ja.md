@@ -1,5 +1,3 @@
-English version: [sandbox-messaging.md](sandbox-messaging.md)
-
 # sandbox-messaging — サンドボックス間メッセージング
 
 2つのExecSandboxインスタンスを、Erlang風メールボックスでつなぐ最小構成。
@@ -56,3 +54,7 @@ kind=0 data=hello from execsandbox-sdk
   破棄される（仕様書§3.4）。上のコマンド例のように、届くまで送信側を
   リトライする運用が必要になる（本番のオーケストレーションではACKを
   アプリケーション側で設計する）。
+
+---
+
+English version: [sandbox-messaging.md](sandbox-messaging.md)

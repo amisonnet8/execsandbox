@@ -1,5 +1,3 @@
-日本語版: [hello-wasi_ja.md](hello-wasi_ja.md)
-
 # hello-wasi — minimal setup
 
 A guest module minimal enough to skip even the ExecSandbox SDK. Written
@@ -73,3 +71,7 @@ GREETING=konnichiwa
   WASM module has no notion of a file name to begin with.
 - **`-e KEY=VALUE`** shows the guest only the environment variables you
   specify. The host's own shell environment is never inherited as-is.
+
+---
+
+日本語版: [hello-wasi_ja.md](hello-wasi_ja.md)

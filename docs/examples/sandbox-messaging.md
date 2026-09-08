@@ -1,5 +1,3 @@
-日本語版: [sandbox-messaging_ja.md](sandbox-messaging_ja.md)
-
 # sandbox-messaging — sandbox-to-sandbox messaging
 
 A minimal setup connecting two ExecSandbox instances through an
@@ -61,3 +59,7 @@ kind=0 data=hello from execsandbox-sdk
   command example above, retrying the sender until it gets through is
   necessary in practice (a production orchestration would design its own
   ACK at the application level).
+
+---
+
+日本語版: [sandbox-messaging_ja.md](sandbox-messaging_ja.md)

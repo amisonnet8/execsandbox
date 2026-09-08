@@ -1,5 +1,3 @@
-English version: [polyglot-messaging.md](polyglot-messaging.md)
-
 # polyglot-messaging — TinyGoとRustの相互接続
 
 ExecSandboxのWASM ABI（仕様書§5）は言語非依存であることを謳っている。
@@ -61,3 +59,7 @@ kind=0 data=hello from execsandbox-sdk
 - 3言語目のSDKを書く場合も、`send`/`recv`/`conn_write`/`max_frame`の4関数を
   正しく`import`し、[仕様書§5](../spec/execsandbox_spec_ja.md)のレイアウトに
   従いさえすれば、この2つとそのまま相互接続できるはずである。
+
+---
+
+English version: [polyglot-messaging.md](polyglot-messaging.md)

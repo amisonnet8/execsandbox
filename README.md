@@ -1,5 +1,3 @@
-日本語版は [README_ja.md](README_ja.md) を参照してください。
-
 # ExecSandbox
 
 A portable, zero-setup sandboxed execution tool that bundles a WASM
@@ -56,3 +54,7 @@ sha256sum -c execsandbox-build_*.sha256
 distributing it to a third party carries both licenses' attribution
 obligations. The output itself can print the required text via `-L,
 --print-licenses`.
+
+---
+
+日本語版は [README_ja.md](README_ja.md) を参照してください。

@@ -1,5 +1,3 @@
-English version: [execsandbox.md](execsandbox.md)
-
 # execsandbox — 生成された実行ファイルの起動オプション
 
 `execsandbox-build` が生成した実行ファイルの起動時オプション。WASMモジュールは
@@ -387,3 +385,7 @@ $ execsandbox -m bogus
 execsandbox: invalid value "bogus" for flag -m: invalid size "bogus": must start with a number
 execsandbox: run with --help for usage
 ```
+
+---
+
+English version: [execsandbox.md](execsandbox.md)

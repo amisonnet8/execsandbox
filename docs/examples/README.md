@@ -1,5 +1,3 @@
-日本語版: [README_ja.md](README_ja.md)
-
 # Examples
 
 Shows what ExecSandbox can do, with working code and actual command output.
@@ -27,3 +25,7 @@ Every example assumes you have a toolchain to build the guest (either
 [TinyGo](https://tinygo.org/) or [Rust](https://www.rust-lang.org/), or
 both), and `execsandbox-build` on hand. For how to obtain the builder
 itself, see [`README.md`](../../README.md) at the repository root.
+
+---
+
+日本語版: [README_ja.md](README_ja.md)

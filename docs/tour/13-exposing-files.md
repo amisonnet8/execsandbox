@@ -1,5 +1,3 @@
-日本語版: [13-exposing-files_ja.md](13-exposing-files_ja.md)
-
 # 13. Exposing Files
 
 `-v/--volume` mounts a host directory into the guest. By default, there is
@@ -31,3 +29,5 @@ filesystem as a whole.
 
 ---
 [← Previous: 12. Capping Memory](12-capping-memory.md) | [Index](README.md) | [Next: 14. Denying Randomness and Time →](14-denying-random-and-time.md)
+
+日本語版: [13-exposing-files_ja.md](13-exposing-files_ja.md)

@@ -1,5 +1,3 @@
-English version: [execsandbox-build.md](execsandbox-build.md)
-
 # execsandbox-build — ビルダー
 
 `.wasm` をExecSandbox本体に埋め込み、単一の実行ファイルを生成する。
@@ -174,3 +172,7 @@ $ execsandbox-build -o mydb
 execsandbox-build: missing input .wasm file
 execsandbox-build: run with --help for usage
 ```
+
+---
+
+English version: [execsandbox-build.md](execsandbox-build.md)

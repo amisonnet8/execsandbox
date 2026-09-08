@@ -1,5 +1,3 @@
-日本語版: [execsandbox-build_ja.md](execsandbox-build_ja.md)
-
 # execsandbox-build — the builder
 
 Embeds a `.wasm` file into the ExecSandbox core, producing a single
@@ -186,3 +184,7 @@ $ execsandbox-build -o mydb
 execsandbox-build: missing input .wasm file
 execsandbox-build: run with --help for usage
 ```
+
+---
+
+日本語版: [execsandbox-build_ja.md](execsandbox-build_ja.md)

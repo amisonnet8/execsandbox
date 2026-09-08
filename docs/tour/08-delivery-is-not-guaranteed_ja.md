@@ -1,5 +1,3 @@
-English version: [08-delivery-is-not-guaranteed.md](08-delivery-is-not-guaranteed.md)
-
 # 8. 送信は届くことを保証しない
 
 前の章の`nodeB`（receiver）を起動せずに、`nodeA`（sender）だけを実行して
@@ -27,3 +25,5 @@ Push型であり、確認応答を返す仕組みそのものが存在しない�
 
 ---
 [← 前: 7. 2つのサンドボックスをつなぐ](07-connecting-two-sandboxes_ja.md) | [目次](README_ja.md) | [次: 9. 外部から接続を受ける →](09-accepting-external-connections_ja.md)
+
+English version: [08-delivery-is-not-guaranteed.md](08-delivery-is-not-guaranteed.md)

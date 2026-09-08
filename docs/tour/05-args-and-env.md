@@ -1,5 +1,3 @@
-日本語版: [05-args-and-env_ja.md](05-args-and-env_ja.md)
-
 # 5. Arguments and Environment Variables
 
 `hello-wasi` also prints its own arguments (`os.Args`) and the environment
@@ -33,3 +31,5 @@ Starting with the next chapter, we move beyond a single sandbox and into
 
 ---
 [← Previous: 4. Seeing Output](04-seeing-output.md) | [Index](README.md) | [Next: 6. The Mailbox Idea →](06-the-mailbox-idea.md)
+
+日本語版: [05-args-and-env_ja.md](05-args-and-env_ja.md)

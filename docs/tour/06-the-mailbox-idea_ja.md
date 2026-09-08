@@ -1,5 +1,3 @@
-English version: [06-the-mailbox-idea.md](06-the-mailbox-idea.md)
-
 # 6. メールボックスという考え方
 
 ExecSandboxのインスタンスは、それぞれが**メールボックス**を1つ持っている
@@ -21,3 +19,5 @@ ExecSandboxのインスタンスは、それぞれが**メールボックス**�
 
 ---
 [← 前: 5. 引数と環境変数](05-args-and-env_ja.md) | [目次](README_ja.md) | [次: 7. 2つのサンドボックスをつなぐ →](07-connecting-two-sandboxes_ja.md)
+
+English version: [06-the-mailbox-idea.md](06-the-mailbox-idea.md)
