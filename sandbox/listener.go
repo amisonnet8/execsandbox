@@ -6,7 +6,6 @@ package sandbox
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -46,7 +45,7 @@ func Listen(id string) (net.Listener, error) {
 // Serve はlからの接続を受け付け続け、各接続から読み取ったフレームを
 // mailboxへ積む。呼び出し側がgoroutineとして起動する想定で、l.Accept()が
 // エラーを返すまで（典型的にはlがCloseされるまで）戻らない。
-func Serve(l net.Listener, mailbox *Mailbox, maxFrame int, log io.Writer) {
+func Serve(l net.Listener, mailbox *Mailbox, maxFrame int, log *Logger) {
 	frameLog := &rateLimitedCounter{interval: frameLogInterval}
 	for {
 		conn, err := l.Accept()
@@ -57,7 +56,7 @@ func Serve(l net.Listener, mailbox *Mailbox, maxFrame int, log io.Writer) {
 	}
 }
 
-func serveConn(conn net.Conn, mailbox *Mailbox, maxFrame int, log io.Writer, frameLog *rateLimitedCounter) {
+func serveConn(conn net.Conn, mailbox *Mailbox, maxFrame int, log *Logger, frameLog *rateLimitedCounter) {
 	defer conn.Close()
 	for {
 		data, oversized, err := ReadFrame(conn, maxFrame)
@@ -66,7 +65,7 @@ func serveConn(conn net.Conn, mailbox *Mailbox, maxFrame int, log io.Writer, fra
 		}
 		if oversized {
 			frameLog.Hit(time.Now(), func(n uint64) {
-				fmt.Fprintf(log, "execsandbox: dropped %d oversized frame(s) received from a peer (max %d bytes)\n", n, maxFrame)
+				log.Printf("dropped %d oversized frame(s) received from a peer (max %d bytes)", n, maxFrame)
 			})
 			continue
 		}

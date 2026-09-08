@@ -40,13 +40,13 @@ func newTestRuntimeDir(t *testing.T) string {
 func TestListenAndDestTable_roundTrip(t *testing.T) {
 	newTestRuntimeDir(t)
 
-	mailbox := NewMailbox(4, &bytes.Buffer{})
+	mailbox := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
 	l, err := Listen("nodeB")
 	if err != nil {
 		t.Fatalf("Listen: %v", err)
 	}
 	defer l.Close()
-	go Serve(l, mailbox, 1024, &bytes.Buffer{})
+	go Serve(l, mailbox, 1024, NewLogger(&bytes.Buffer{}, false))
 
 	dest := NewDestTable(map[uint32]string{1: "nodeB"})
 	defer dest.Close()

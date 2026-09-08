@@ -41,11 +41,11 @@ func runWithDeadline(t *testing.T, wasmPath string, needsHostModule bool, deadli
 	if needsHostModule {
 		// メッセージは一切届かない前提のMailbox。recvが本当にブロックし
 		// 続けることを保証する。
-		mailbox := NewMailbox(4, &bytes.Buffer{})
+		mailbox := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
 		if _, err := RegisterHostModule(ctx, rt, HostConfig{
 			Mailbox:  mailbox,
 			MaxFrame: 1024,
-			Log:      &bytes.Buffer{},
+			Log:      NewLogger(&bytes.Buffer{}, false),
 		}); err != nil {
 			t.Fatalf("RegisterHostModule: %v", err)
 		}

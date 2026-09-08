@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"testing"
 	"time"
 )
@@ -256,6 +257,8 @@ func TestOptionsValidate(t *testing.T) {
 		{name: "zero memLimit", opts: options{memLimit: 0, mailboxLimit: 1, maxFrame: 1}, wantErr: true},
 		{name: "zero mailboxLimit", opts: options{memLimit: 1, mailboxLimit: 0, maxFrame: 1}, wantErr: true},
 		{name: "zero maxFrame", opts: options{memLimit: 1, mailboxLimit: 1, maxFrame: 0}, wantErr: true},
+		{name: "maxFrame exceeds int32", opts: options{memLimit: 1, mailboxLimit: 1, maxFrame: math.MaxInt32 + 1}, wantErr: true},
+		{name: "maxFrame at int32 limit", opts: options{memLimit: 1, mailboxLimit: 1, maxFrame: math.MaxInt32}, wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

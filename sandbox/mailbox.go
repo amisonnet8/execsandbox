@@ -10,8 +10,6 @@ package sandbox
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"sync"
 	"time"
 )
@@ -22,7 +20,7 @@ const dropLogInterval = 5 * time.Second
 
 type Mailbox struct {
 	limit int
-	log   io.Writer
+	log   *Logger
 
 	mu     sync.Mutex
 	queue  [][]byte
@@ -33,7 +31,7 @@ type Mailbox struct {
 
 // NewMailbox は通数上限 limit のメールボックスを作る。tail-drop発生時のログは
 // log へ書き込む。
-func NewMailbox(limit int, log io.Writer) *Mailbox {
+func NewMailbox(limit int, log *Logger) *Mailbox {
 	return &Mailbox{
 		limit:  limit,
 		log:    log,
@@ -56,7 +54,7 @@ func (mb *Mailbox) Push(data []byte) {
 
 	if full {
 		mb.dropLog.Hit(time.Now(), func(n uint64) {
-			fmt.Fprintf(mb.log, "execsandbox: mailbox full, dropped %d message(s)\n", n)
+			mb.log.Printf("mailbox full, dropped %d message(s)", n)
 		})
 		return
 	}

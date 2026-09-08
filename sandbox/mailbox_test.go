@@ -9,7 +9,7 @@ import (
 )
 
 func TestMailbox_fifoOrder(t *testing.T) {
-	mb := NewMailbox(10, &bytes.Buffer{})
+	mb := NewMailbox(10, NewLogger(&bytes.Buffer{}, false))
 	mb.Push([]byte("first"))
 	mb.Push([]byte("second"))
 
@@ -26,7 +26,7 @@ func TestMailbox_fifoOrder(t *testing.T) {
 
 func TestMailbox_tailDrop(t *testing.T) {
 	var logBuf bytes.Buffer
-	mb := NewMailbox(2, &logBuf)
+	mb := NewMailbox(2, NewLogger(&logBuf, false))
 
 	mb.Push([]byte("a"))
 	mb.Push([]byte("b"))
@@ -53,7 +53,7 @@ func TestMailbox_tailDrop(t *testing.T) {
 }
 
 func TestMailbox_bufferTooSmall_messageStays(t *testing.T) {
-	mb := NewMailbox(4, &bytes.Buffer{})
+	mb := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
 	mb.Push([]byte("hello world"))
 
 	ctx := context.Background()
@@ -73,7 +73,7 @@ func TestMailbox_bufferTooSmall_messageStays(t *testing.T) {
 }
 
 func TestMailbox_recvTimeout(t *testing.T) {
-	mb := NewMailbox(4, &bytes.Buffer{})
+	mb := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
@@ -89,7 +89,7 @@ func TestMailbox_recvTimeout(t *testing.T) {
 }
 
 func TestMailbox_recvUnblocksOnPush(t *testing.T) {
-	mb := NewMailbox(4, &bytes.Buffer{})
+	mb := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)

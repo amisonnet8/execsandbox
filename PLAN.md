@@ -188,7 +188,35 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 
 ## 現在地
 
-**フェーズ②/ Step 2 完了 → Step 3（未着手）**
+**フェーズ②/ Step 3 完了 → Step 4（未着手）**
+
+Step 3（ログの統一とバックプレッシャー〔`-q`/`-b`/`-f`〕の実配線）を完了した。
+
+- `sandbox/log.go`（新設）: `Logger`型（`execsandbox:`接頭辞・改行付与・
+  `-q`時の抑制を集約）。並行呼び出し（複数送信元からの`Push`、複数接続の
+  `serveConn`）による出力の混線を避けるため内部に`sync.Mutex`を持つ。
+- `mailbox.go`/`host.go`/`listener.go`の`io.Writer`引数を`*Logger`へ置き換え、
+  `fmt.Fprintf(w, "execsandbox: ...\n", ...)`の直書きを`log.Printf(...)`へ
+  統一（両ファイルの`fmt`/`io`importが不要になり削除）。
+- `main.go`: `sandbox.NewLogger(os.Stderr, opts.quiet)`を`run()`内で1つ作り、
+  `NewMailbox`・`Serve`・`HostConfig.Log`すべてに同じインスタンスを渡す。
+  起動時エラー（パースエラー・`run()`のエラー）はこれまで通り`Logger`を
+  経由せず直接`os.Stderr`へ書く（`-q`は起動エラーを抑制しない、確認済み
+  方針の通り）。
+- `options.go`の`validate()`に`-f/--max-frame`の上限チェック
+  （`math.MaxInt32`超はエラー）を追加。ABIの`max_frame()`がi32を返すこと、
+  `recv`の不足バッファ表現`-(len)-1`もi32に収める必要があること
+  （`.claude/rules/abi-compatibility.md`）が理由。
+- `-b`/`-f`自体のオプション値→`NewMailbox`/`HostConfig.MaxFrame`への配線は
+  Step 2で前倒し済みだったため、本Stepでは行っていない（Step 2の記録参照）。
+- **実際の動作確認**: `host_probe`（1通受けたら即終了するモジュール）を
+  `-b 1`でスタンプ起動し、起動直後に20並列で送信することで実際に
+  tail-dropを発生させ、`execsandbox: mailbox full, dropped 1 message(s)`が
+  stderrに出ることを確認した。同条件に`-q`を付けるとstderrが完全に空に
+  なることも確認した。`tests/e2e_basic.sh`（既存）で回帰がないことも確認。
+  `sandbox/log_test.go`（新設）で`Logger.Printf`の接頭辞・改行・quiet抑制を
+  単体テスト化。`go build`/`go vet`/`gofmt -l`/`go test`/`make race`/
+  `make check`/`make test`すべてgreen。
 
 Step 2（CLI足場：全オプションのパースとヘルプ/バージョン）を完了した。
 

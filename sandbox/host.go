@@ -6,8 +6,6 @@ package sandbox
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
-	"io"
 	"time"
 
 	"github.com/tetratelabs/wazero"
@@ -29,7 +27,7 @@ type HostConfig struct {
 	// MaxFrame は1通あたりの最大バイト数（仕様書§5.5 max_frame、§3.4）。
 	MaxFrame int
 	// Log はホスト側ログ（tail-drop、フレーム長超過）の出力先。
-	Log io.Writer
+	Log *Logger
 	// Dest は起動時オプション(-d)による宛先番号の割り当てと、宛先ごとの
 	// 遅延接続を保持する。nilの場合はすべての宛先が未割り当てとして扱われる
 	// （-nも-dも指定しない、送信専用でも受信専用でもない構成に相当）。
@@ -63,7 +61,7 @@ func (cfg HostConfig) sendFunc(frameLog *rateLimitedCounter) func(ctx context.Co
 		if int(length) > cfg.MaxFrame {
 			maxFrame := cfg.MaxFrame
 			frameLog.Hit(time.Now(), func(n uint64) {
-				fmt.Fprintf(cfg.Log, "execsandbox: dropped %d oversized frame(s) (max %d bytes)\n", n, maxFrame)
+				cfg.Log.Printf("dropped %d oversized frame(s) (max %d bytes)", n, maxFrame)
 			})
 			return
 		}

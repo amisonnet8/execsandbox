@@ -1,9 +1,10 @@
 // cmd/execsandbox は、ビルダーが埋め込むベースバイナリ本体。
 //
-// フェーズ②Step2時点で、仕様書§7.1の全オプションのパース・検証・ヘルプ・
-// バージョン表示を実装した。ただし-e/-v/-s/-t/-xの値はまだwazeroへ配線して
-// いない（WASI組み込み・ファイルシステム・タイムアウト等はフェーズ②の
-// 以降のステップで行う）。-n/-d/-b/-fは実際に配線済み。
+// フェーズ②Step3時点で、仕様書§7.1の全オプションのパース・検証・ヘルプ・
+// バージョン表示に加え、-q/--quietによるホスト側ログの抑制を実装した。
+// ただし-e/-v/-s/-t/-xの値はまだwazeroへ配線していない（WASI組み込み・
+// ファイルシステム・タイムアウト等はフェーズ②の以降のステップで行う）。
+// -n/-d/-b/-f/-qは実際に配線済み。
 package main
 
 import (
@@ -70,7 +71,9 @@ func run(opts *options) error {
 		return err
 	}
 
-	mailbox := sandbox.NewMailbox(opts.mailboxLimit, os.Stderr)
+	log := sandbox.NewLogger(os.Stderr, opts.quiet)
+
+	mailbox := sandbox.NewMailbox(opts.mailboxLimit, log)
 
 	if opts.name != "" {
 		listener, err := sandbox.Listen(opts.name)
@@ -78,7 +81,7 @@ func run(opts *options) error {
 			return fmt.Errorf("listen for sandbox-to-sandbox messages: %w", err)
 		}
 		defer listener.Close()
-		go sandbox.Serve(listener, mailbox, int(opts.maxFrame), os.Stderr)
+		go sandbox.Serve(listener, mailbox, int(opts.maxFrame), log)
 	}
 
 	destTable := sandbox.NewDestTable(opts.dest)
@@ -91,7 +94,7 @@ func run(opts *options) error {
 	if _, err := sandbox.RegisterHostModule(ctx, rt, sandbox.HostConfig{
 		Mailbox:  mailbox,
 		MaxFrame: int(opts.maxFrame),
-		Log:      os.Stderr,
+		Log:      log,
 		Dest:     destTable,
 	}); err != nil {
 		return fmt.Errorf("register host module: %w", err)

@@ -2,8 +2,8 @@ package main
 
 // 起動時CLIオプションのパース(仕様書§7)。
 //
-// フェーズ②Step2時点では、ここで組み立てるoptionsの値のうち実際に配線されて
-// いるのは-n/-d/-b/-fのみ。-e/-v/-s/-t/-xはパース・検証だけを行い、
+// フェーズ②Step3時点では、ここで組み立てるoptionsの値のうち実際に配線されて
+// いるのは-n/-d/-b/-f/-qのみ。-e/-v/-s/-t/-xはパース・検証だけを行い、
 // wazeroへの適用(ModuleConfig/RuntimeConfig)はフェーズ②の以降のステップ
 // (WASI組み込み、ファイルシステム、乱数・時刻、タイムアウト)で行う。
 
@@ -141,6 +141,12 @@ func (o *options) validate() error {
 	}
 	if o.maxFrame <= 0 {
 		return fmt.Errorf("invalid -f/--max-frame: must be greater than 0")
+	}
+	// max_frame()はi32を返し(仕様書§5.5)、recvの不足バッファ表現も
+	// -(len)-1をi32に収める(.claude/rules/abi-compatibility.md)ため、
+	// この範囲に収まらない値は起動時に弾く。
+	if o.maxFrame > math.MaxInt32 {
+		return fmt.Errorf("invalid -f/--max-frame: must not exceed %d bytes (2G-1)", int32(math.MaxInt32))
 	}
 	return nil
 }

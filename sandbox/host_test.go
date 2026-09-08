@@ -54,9 +54,9 @@ func newProbeGuest(t *testing.T, cfg HostConfig) (context.Context, wazero.Runtim
 
 func TestHostModule_maxFrame(t *testing.T) {
 	ctx, _, guest := newProbeGuest(t, HostConfig{
-		Mailbox:  NewMailbox(4, &bytes.Buffer{}),
+		Mailbox:  NewMailbox(4, NewLogger(&bytes.Buffer{}, false)),
 		MaxFrame: 12345,
-		Log:      &bytes.Buffer{},
+		Log:      NewLogger(&bytes.Buffer{}, false),
 	})
 
 	results, err := guest.ExportedFunction("max_frame_probe").Call(ctx)
@@ -71,9 +71,9 @@ func TestHostModule_maxFrame(t *testing.T) {
 func TestHostModule_sendWithinLimit_noLog(t *testing.T) {
 	var logBuf bytes.Buffer
 	ctx, _, guest := newProbeGuest(t, HostConfig{
-		Mailbox:  NewMailbox(4, &logBuf),
+		Mailbox:  NewMailbox(4, NewLogger(&logBuf, false)),
 		MaxFrame: 1024,
-		Log:      &logBuf,
+		Log:      NewLogger(&logBuf, false),
 	})
 
 	// send_probeはオフセット0から読むので、事前に有効なペイロードが要る
@@ -90,9 +90,9 @@ func TestHostModule_sendWithinLimit_noLog(t *testing.T) {
 func TestHostModule_sendOverMaxFrame_logs(t *testing.T) {
 	var logBuf bytes.Buffer
 	ctx, _, guest := newProbeGuest(t, HostConfig{
-		Mailbox:  NewMailbox(4, &logBuf),
+		Mailbox:  NewMailbox(4, NewLogger(&logBuf, false)),
 		MaxFrame: 100,
-		Log:      &logBuf,
+		Log:      NewLogger(&logBuf, false),
 	})
 
 	if _, err := guest.ExportedFunction("send_probe").Call(ctx, 1, 200); err != nil {
@@ -107,9 +107,9 @@ func TestHostModule_sendOverMaxFrame_logs(t *testing.T) {
 
 func TestHostModule_recvImmediateTimeout(t *testing.T) {
 	ctx, _, guest := newProbeGuest(t, HostConfig{
-		Mailbox:  NewMailbox(4, &bytes.Buffer{}),
+		Mailbox:  NewMailbox(4, NewLogger(&bytes.Buffer{}, false)),
 		MaxFrame: 1024,
-		Log:      &bytes.Buffer{},
+		Log:      NewLogger(&bytes.Buffer{}, false),
 	})
 
 	results, err := guest.ExportedFunction("recv_probe").Call(ctx, 64, api.EncodeI32(0))
@@ -122,13 +122,13 @@ func TestHostModule_recvImmediateTimeout(t *testing.T) {
 }
 
 func TestHostModule_recvBufferTooSmall_messageStays(t *testing.T) {
-	mailbox := NewMailbox(4, &bytes.Buffer{})
+	mailbox := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
 	mailbox.Push([]byte("a message longer than four bytes"))
 
 	ctx, _, guest := newProbeGuest(t, HostConfig{
 		Mailbox:  mailbox,
 		MaxFrame: 1024,
-		Log:      &bytes.Buffer{},
+		Log:      NewLogger(&bytes.Buffer{}, false),
 	})
 
 	results, err := guest.ExportedFunction("recv_probe").Call(ctx, 4, api.EncodeI32(0))
@@ -152,11 +152,11 @@ func TestHostModule_recvBufferTooSmall_messageStays(t *testing.T) {
 }
 
 func TestHostModule_recvBlocksUntilPush(t *testing.T) {
-	mailbox := NewMailbox(4, &bytes.Buffer{})
+	mailbox := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
 	ctx, _, guest := newProbeGuest(t, HostConfig{
 		Mailbox:  mailbox,
 		MaxFrame: 1024,
-		Log:      &bytes.Buffer{},
+		Log:      NewLogger(&bytes.Buffer{}, false),
 	})
 
 	go func() {
@@ -181,7 +181,7 @@ func TestHostModule_recvBlocksUntilPush(t *testing.T) {
 }
 
 func TestHostModule_start_receivesAndEchoes(t *testing.T) {
-	mailbox := NewMailbox(4, &bytes.Buffer{})
+	mailbox := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
 
 	ctx := context.Background()
 	rt := wazero.NewRuntime(ctx)
@@ -190,7 +190,7 @@ func TestHostModule_start_receivesAndEchoes(t *testing.T) {
 	if _, err := RegisterHostModule(ctx, rt, HostConfig{
 		Mailbox:  mailbox,
 		MaxFrame: 1024,
-		Log:      &bytes.Buffer{},
+		Log:      NewLogger(&bytes.Buffer{}, false),
 	}); err != nil {
 		t.Fatalf("RegisterHostModule: %v", err)
 	}
