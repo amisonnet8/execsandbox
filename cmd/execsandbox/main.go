@@ -118,9 +118,9 @@ func run(opts *options) (exitCode int, err error) {
 			return 1, fmt.Errorf("listen for external connections on %s: %w", opts.listen, err)
 		}
 		defer connListener.Close()
-		connTable = sandbox.NewConnTable()
+		connTable = sandbox.NewConnTable(mailbox)
 		defer connTable.Close()
-		go connTable.Serve(connListener, mailbox, int(opts.maxFrame))
+		go connTable.Serve(connListener, int(opts.maxFrame))
 	}
 
 	policy := sandbox.Policy{
@@ -154,6 +154,7 @@ func run(opts *options) (exitCode int, err error) {
 		MaxFrame: int(opts.maxFrame),
 		Log:      log,
 		Dest:     destTable,
+		Conns:    connTable,
 	}); err != nil {
 		return 1, fmt.Errorf("register host module: %w", err)
 	}

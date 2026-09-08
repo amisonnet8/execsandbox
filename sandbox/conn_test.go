@@ -3,6 +3,7 @@ package sandbox
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net"
 	"testing"
 	"time"
@@ -29,9 +30,9 @@ func TestConnTable_establishDataDisconnect(t *testing.T) {
 	defer l.Close()
 
 	mb := NewMailbox(16, NewLogger(&bytes.Buffer{}, false))
-	ct := NewConnTable()
+	ct := NewConnTable(mb)
 	defer ct.Close()
-	go ct.Serve(l, mb, 1024)
+	go ct.Serve(l, 1024)
 
 	client, err := net.Dial("tcp", l.Addr().String())
 	if err != nil {
@@ -70,9 +71,9 @@ func TestConnTable_connIDsAreNotReused(t *testing.T) {
 	defer l.Close()
 
 	mb := NewMailbox(16, NewLogger(&bytes.Buffer{}, false))
-	ct := NewConnTable()
+	ct := NewConnTable(mb)
 	defer ct.Close()
-	go ct.Serve(l, mb, 1024)
+	go ct.Serve(l, 1024)
 
 	// 1本目の接続を確立してすぐ閉じる。
 	c1, err := net.Dial("tcp", l.Addr().String())
@@ -117,9 +118,9 @@ func TestConnTable_disconnectBypassesMailboxLimit(t *testing.T) {
 	var logBuf bytes.Buffer
 	mb := NewMailbox(0, NewLogger(&logBuf, false))
 
-	ct := NewConnTable()
+	ct := NewConnTable(mb)
 	defer ct.Close()
-	go ct.Serve(l, mb, 1024)
+	go ct.Serve(l, 1024)
 
 	// このConnTableで最初に受け付ける接続なのでconnIDは1になる。
 	client, err := net.Dial("tcp", l.Addr().String())
@@ -134,5 +135,93 @@ func TestConnTable_disconnectBypassesMailboxLimit(t *testing.T) {
 	disconnect := recvExpect(t, mb, time.Second)
 	if disconnect.Kind != 3 || disconnect.ConnID != wantConnID {
 		t.Fatalf("disconnect event = %+v, want kind=3 conn_id=%d despite a zero-capacity mailbox", disconnect, wantConnID)
+	}
+}
+
+func TestConnTable_write_unknownConnID(t *testing.T) {
+	mb := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
+	ct := NewConnTable(mb)
+	defer ct.Close()
+
+	got := ct.Write(context.Background(), 999, []byte("x"))
+	if got != -1 {
+		t.Errorf("Write(unknown conn_id) = %d, want -1", got)
+	}
+}
+
+func TestConnTable_write_success(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen: %v", err)
+	}
+	defer l.Close()
+
+	mb := NewMailbox(16, NewLogger(&bytes.Buffer{}, false))
+	ct := NewConnTable(mb)
+	defer ct.Close()
+	go ct.Serve(l, 1024)
+
+	client, err := net.Dial("tcp", l.Addr().String())
+	if err != nil {
+		t.Fatalf("net.Dial: %v", err)
+	}
+	defer client.Close()
+
+	established := recvExpect(t, mb, time.Second)
+
+	got := ct.Write(context.Background(), established.ConnID, []byte("pong"))
+	if got != 0 {
+		t.Fatalf("Write() = %d, want 0", got)
+	}
+
+	client.SetReadDeadline(time.Now().Add(time.Second))
+	buf := make([]byte, 4)
+	if _, err := client.Read(buf); err != nil {
+		t.Fatalf("client.Read: %v", err)
+	}
+	if string(buf) != "pong" {
+		t.Errorf("client received %q, want %q", buf, "pong")
+	}
+}
+
+// stubConn は、net.ConnのWrite失敗時にConnTable.Writeが接続を破棄し
+// 切断イベントを配送することを、実TCPのRST到達タイミングに依存せず
+// 決定的に検証するための最小実装。呼び出されるのはWrite/Closeのみ
+// （テストではSetWriteDeadlineを要求するdeadline付きctxを使わないため）。
+type stubConn struct {
+	net.Conn
+	writeErr error
+	closed   bool
+}
+
+func (c *stubConn) Write(b []byte) (int, error) { return 0, c.writeErr }
+func (c *stubConn) Close() error                { c.closed = true; return nil }
+
+func TestConnTable_write_failureDisconnectsAndReportsUnknown(t *testing.T) {
+	mb := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
+	ct := NewConnTable(mb)
+	defer ct.Close()
+
+	conn := &stubConn{writeErr: errors.New("broken pipe")}
+	ct.mu.Lock()
+	ct.conns[1] = conn
+	ct.mu.Unlock()
+
+	got := ct.Write(context.Background(), 1, []byte("x"))
+	if got != -1 {
+		t.Fatalf("Write() with a failing conn = %d, want -1", got)
+	}
+	if !conn.closed {
+		t.Error("Write failure must close the connection")
+	}
+
+	disconnect := recvExpect(t, mb, time.Second)
+	if disconnect.Kind != 3 || disconnect.ConnID != 1 {
+		t.Fatalf("disconnect event = %+v, want kind=3 conn_id=1", disconnect)
+	}
+
+	// 以後は本当に「不明なconnID」になっているはず。
+	if got := ct.Write(context.Background(), 1, []byte("x")); got != -1 {
+		t.Errorf("Write() after disconnect = %d, want -1", got)
 	}
 }

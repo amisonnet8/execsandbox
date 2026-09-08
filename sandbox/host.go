@@ -1,7 +1,7 @@
 package sandbox
 
-// 仕様書§5のWASM ABI（send/recv/max_frame）をwazeroのホストモジュール
-// "execsandbox" として登録する。conn_writeはフェーズ③で追加する。
+// 仕様書§5のWASM ABI（send/recv/max_frame/conn_write）をwazeroのホスト
+// モジュール "execsandbox" として登録する。
 
 import (
 	"context"
@@ -32,6 +32,9 @@ type HostConfig struct {
 	// 遅延接続を保持する。nilの場合はすべての宛先が未割り当てとして扱われる
 	// （-nも-dも指定しない、送信専用でも受信専用でもない構成に相当）。
 	Dest *DestTable
+	// Conns は起動時オプション(-l)で受け付けた外部接続を保持する。nilの場合
+	// （-l未指定）、conn_writeは常に-1（不明なconnID）を返す。
+	Conns *ConnTable
 }
 
 // RegisterHostModule はcfgに基づき"execsandbox"モジュールをwazeroへ登録する。
@@ -48,6 +51,9 @@ func RegisterHostModule(ctx context.Context, rt wazero.Runtime, cfg HostConfig) 
 		NewFunctionBuilder().
 		WithFunc(cfg.maxFrameFunc()).
 		Export("max_frame").
+		NewFunctionBuilder().
+		WithFunc(cfg.connWriteFunc()).
+		Export("conn_write").
 		Instantiate(ctx)
 }
 
@@ -130,5 +136,32 @@ func (cfg HostConfig) recvFunc() func(ctx context.Context, mod api.Module, metaP
 func (cfg HostConfig) maxFrameFunc() func() int32 {
 	return func() int32 {
 		return int32(cfg.MaxFrame)
+	}
+}
+
+// conn_write(conn_id, ptr, len) -> i32。仕様書§5.4。
+//
+//	0  成功
+//	-1 不明なconnID
+//
+// -lが未指定（cfg.Conns == nil）の場合は常に-1。範囲外ポインタも-1で扱う
+// （§5.4は2値しか定義しておらず、ゲストの誤用に専用の戻り値を与えることは
+// ABIの拡張になるため）。書き込み待ちのdeadline反映・失敗時の接続破棄は
+// ConnTable.Writeの責務（sandbox/conn.go）。
+func (cfg HostConfig) connWriteFunc() func(ctx context.Context, mod api.Module, connID, ptr, length uint32) int32 {
+	return func(ctx context.Context, mod api.Module, connID, ptr, length uint32) int32 {
+		if cfg.Conns == nil {
+			return -1
+		}
+
+		data, ok := mod.Memory().Read(ptr, length)
+		if !ok {
+			return -1
+		}
+		// dataはゲストの線形メモリを直接指すビュー。ConnTable.Writeは
+		// この呼び出しの中で同期的にconn.Writeし終えるため、コピーせず渡してよい
+		// （sendFuncと同じ理由。.claude/rules/wazero-quirks.mdの「関数呼び出しを
+		// またいで保持するのは危険」には該当しない）。
+		return cfg.Conns.Write(ctx, connID, data)
 	}
 }

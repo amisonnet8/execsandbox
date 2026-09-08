@@ -8,6 +8,8 @@ package sandbox
 import (
 	"bytes"
 	"context"
+	"io"
+	"net"
 	"os"
 	"strings"
 	"testing"
@@ -214,5 +216,83 @@ func TestHostModule_start_receivesAndEchoes(t *testing.T) {
 	}
 	if int32(recvResult) != int32(len("pong")) {
 		t.Errorf("_start's recv result = %d, want %d", int32(recvResult), len("pong"))
+	}
+}
+
+// TestHostModule_connWrite_echoesExternalData は、conn_write（仕様書§5.4）を
+// testdata/modules/conn_echo.wat経由でエンドツーエンドに検証する。実際の
+// TCPリスナー・クライアントを使い、-l/--listen経由で受け付けた接続の
+// データ(kind=2)が、ゲストのconn_writeでそのまま書き戻されることを確認する。
+//
+// conn_echo.wasmの"_start"はrecvの無限ループで、外部から取り消されない限り
+// 自発的には終了しない（blocker.wasmと同じ構造）。そのためテスト用contextに
+// deadlineを持たせ、wazero.RuntimeConfig.WithCloseOnContextDone(true)で
+// 強制終了させることでテストを終わらせる(sandbox/timeout_spike_test.goと
+// 同じ手口)。
+func TestHostModule_connWrite_echoesExternalData(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen: %v", err)
+	}
+	defer l.Close()
+
+	mailbox := NewMailbox(16, NewLogger(&bytes.Buffer{}, false))
+	connTable := NewConnTable(mailbox)
+	defer connTable.Close()
+	go connTable.Serve(l, 1024)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	rtConfig := wazero.NewRuntimeConfig().WithCloseOnContextDone(true)
+	rt := wazero.NewRuntimeWithConfig(ctx, rtConfig)
+	defer rt.Close(context.Background())
+
+	if _, err := RegisterHostModule(ctx, rt, HostConfig{
+		Mailbox:  mailbox,
+		MaxFrame: 1024,
+		Log:      NewLogger(&bytes.Buffer{}, false),
+		Conns:    connTable,
+	}); err != nil {
+		t.Fatalf("RegisterHostModule: %v", err)
+	}
+
+	wasmBytes, err := os.ReadFile("../testdata/modules/conn_echo.wasm")
+	if err != nil {
+		t.Fatalf("read conn_echo.wasm: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := rt.Instantiate(ctx, wasmBytes)
+		done <- err
+	}()
+
+	client, err := net.Dial("tcp", l.Addr().String())
+	if err != nil {
+		t.Fatalf("net.Dial: %v", err)
+	}
+	defer client.Close()
+
+	if _, err := client.Write([]byte("ping")); err != nil {
+		t.Fatalf("client.Write: %v", err)
+	}
+
+	client.SetReadDeadline(time.Now().Add(time.Second))
+	buf := make([]byte, 4)
+	if _, err := io.ReadFull(client, buf); err != nil {
+		t.Fatalf("client.Read (echo): %v", err)
+	}
+	if string(buf) != "ping" {
+		t.Fatalf("echoed data = %q, want %q", buf, "ping")
+	}
+
+	// ゲストは無限ループなので、テストを終えるために明示的にcontextを
+	// 取り消し、WithCloseOnContextDoneによる強制終了を待つ。
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("guest did not stop after context cancellation")
 	}
 }
