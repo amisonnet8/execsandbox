@@ -55,9 +55,9 @@ func TestListenAndDestTable_roundTrip(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	got, _, timedOut := mailbox.Recv(ctx, 1024)
-	if timedOut || string(got) != "hello from nodeA" {
-		t.Fatalf("mailbox.Recv() = %q, timedOut=%v", got, timedOut)
+	got, _, outcome := mailbox.Recv(ctx, 1024)
+	if outcome != RecvDelivered || string(got.Payload) != "hello from nodeA" {
+		t.Fatalf("mailbox.Recv() = %q, outcome=%v", got.Payload, outcome)
 	}
 }
 

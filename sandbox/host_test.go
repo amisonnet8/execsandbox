@@ -123,7 +123,7 @@ func TestHostModule_recvImmediateTimeout(t *testing.T) {
 
 func TestHostModule_recvBufferTooSmall_messageStays(t *testing.T) {
 	mailbox := NewMailbox(4, NewLogger(&bytes.Buffer{}, false))
-	mailbox.Push([]byte("a message longer than four bytes"))
+	mailbox.Push(Message{Payload: []byte("a message longer than four bytes")})
 
 	ctx, _, guest := newProbeGuest(t, HostConfig{
 		Mailbox:  mailbox,
@@ -161,7 +161,7 @@ func TestHostModule_recvBlocksUntilPush(t *testing.T) {
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		mailbox.Push([]byte("ping"))
+		mailbox.Push(Message{Payload: []byte("ping")})
 	}()
 
 	// timeout_ms = -1 (無限待ち)
@@ -197,7 +197,7 @@ func TestHostModule_start_receivesAndEchoes(t *testing.T) {
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		mailbox.Push([]byte("pong"))
+		mailbox.Push(Message{Payload: []byte("pong")})
 	}()
 
 	// _startが自動実行され、内部でrecv(timeout=-1)がブロックしたのち

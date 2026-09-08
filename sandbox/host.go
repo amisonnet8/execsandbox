@@ -107,20 +107,22 @@ func (cfg HostConfig) recvFunc() func(ctx context.Context, mod api.Module, metaP
 			defer cancel()
 		}
 
-		data, requiredLen, timedOut := cfg.Mailbox.Recv(waitCtx, int(bufCap))
-		if timedOut {
+		msg, requiredLen, outcome := cfg.Mailbox.Recv(waitCtx, int(bufCap))
+		switch outcome {
+		case RecvTimedOut:
 			return -1
-		}
-		if data == nil {
+		case RecvBufferTooSmall:
 			return -(int32(requiredLen) + 1)
 		}
 
 		var meta [8]byte
-		binary.LittleEndian.PutUint32(meta[0:4], 0) // kind=0: サンドボックス間メッセージ
-		binary.LittleEndian.PutUint32(meta[4:8], 0) // conn_id: 未使用
+		binary.LittleEndian.PutUint32(meta[0:4], msg.Kind)
+		binary.LittleEndian.PutUint32(meta[4:8], msg.ConnID)
 		mod.Memory().Write(metaPtr, meta[:])
-		mod.Memory().Write(bufPtr, data)
-		return int32(len(data))
+		if len(msg.Payload) > 0 {
+			mod.Memory().Write(bufPtr, msg.Payload)
+		}
+		return int32(len(msg.Payload))
 	}
 }
 

@@ -69,6 +69,6 @@ func serveConn(conn net.Conn, mailbox *Mailbox, maxFrame int, log *Logger, frame
 			})
 			continue
 		}
-		mailbox.Push(data)
+		mailbox.Push(Message{Kind: 0, Payload: data})
 	}
 }

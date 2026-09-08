@@ -186,9 +186,90 @@ TinyGo向けSDKに加えて**他言語のSDKを最低1つ**実装し、ABIが本
 Step 8完了時に通す。コミットは各Step完了時に行う。pushは行わない
 （GitHub操作はユーザーが行う）。
 
+## フェーズ③のステップ
+
+外部接続であるフェーズ③は、以下の5ステップで進める。フェーズ②Step 1のような
+意思決定ゲートは置かない——`WithCloseOnContextDone`のような未検証の外部依存はなく、
+使うのは`net`パッケージと既存のメールボックスだけであるため。
+
+**設計上の最大の要点**：現在の`Mailbox`は`[][]byte`しか持たず、`recv`のメタデータ
+（`kind`/`conn_id`）は`sandbox/host.go`で0固定に書かれている。ここをイベント型
+（`kind`/`conn_id`/ペイロード）に一般化することが土台であり、他のすべてがその上に
+乗る（Step 1）。
+
+**事前確認済みの設計判断**：
+- **切断イベント（kind=3）はメールボックス上限を無視して必ず積む。** 仕様書§3.6は
+  一律tail-dropと書く一方、§4.2は「切断イベントは必ず配送される」前提に立っており、
+  素直に実装すると混雑時にゲストがconnIDごとの状態を永久に破棄できずリークする。
+  上限超過分は「同時生存接続数」で上界が定まるためメモリ上界の保証は崩れない。
+  この例外は仕様書§3.6への1文追記をStep 5で提案する。
+- **`conn_write`の書き込み失敗は`-1`を返し、その接続を破棄する。** 接続を閉じて
+  テーブルから削除し、切断イベントを配送してから`-1`を返す。以後そのconnIDは
+  本当に「不明なconnID」になるため、§5.4の2値（`0`/`-1`）のままABIを変えずに済む。
+- **`conn_write`の書き込み待ちには`-t`由来のdeadlineのみを反映する。** ホスト関数へ
+  渡るctxがdeadlineを持つとき（`-t`指定時）だけ`SetWriteDeadline`し、未指定なら
+  従来どおり完了までブロックする。
+
+1. **Step 1: メールボックスのイベント型化（kind/conn_idの搬送）【土台】**
+   - `sandbox/mailbox.go`: `Message{Kind, ConnID uint32; Payload []byte}`を新設し
+     キューを`[]Message`へ。`PushDisconnect(connID)`は上限を無視して必ず積む。
+     `Recv`の戻り値を`RecvOutcome`（`RecvDelivered`/`RecvTimedOut`/
+     `RecvBufferTooSmall`）の3分岐に整理し、ABIの`recv`の戻り値と1対1対応させる。
+   - `sandbox/host.go`の`recvFunc`をmsg.Kind/msg.ConnIDから書くよう変更。
+   - `sandbox/listener.go`の`serveConn`を`Message{Kind: 0, ...}`へ追随。
+   - 検証: 既存のE2E（`e2e_basic`/`e2e_policy`/`e2e_timeout`）を全て再実行し
+     回帰がないことを確認。
+2. **Step 2: `-l/--listen`のパースとアドレス解析（§7.4）**
+   - `sandbox/listenaddr.go`（新設）: `ParseListenAddress(s string) (network,
+     address string, err error)`。§7.4の全形式（ポート番号のみ／IPv4／`:PORT`／
+     IPv6／Unixソケットパス／`unix:`接頭辞）を扱う純関数。Windowsドライブレター
+     パスは`unix:`接頭辞を必須とする。
+   - `options.go`に`-l/--listen`を追加。2回以上の指定はエラー（§4.1）。
+   - 検証: §7.4の全形式＋異常系のテーブルテスト。
+3. **Step 3: 接続管理とイベントのメールボックス合流（§4.2、§4.3）**
+   - `sandbox/conn.go`（新設）: `ConnTable`。connIDは1始まり単調増加、切断後も
+     再利用しない（u32一巡時は生存中のIDを飛ばす）。`Serve`が確立→kind=1、
+     読み取り→kind=2、EOF/エラー→テーブルから削除しPushDisconnect。読み取り
+     チャンク長は`min(maxFrame, 64KiB)`。読み取ったバイト列は必ずコピーしてから
+     Push。
+   - `main.go`: `-l`指定時に`net.Listen`し`go connTable.Serve(...)`。Unixソケットの
+     stale掃除は行わない（`-n`とは対照的、`-l`は利用者が明示したパスのため）。
+     接続の受理・切断はホスト側ログに出さない（ゲストへ既に通知済みの事象のため）。
+   - 検証: `net.Listen("tcp", "127.0.0.1:0")`で確立→データ→切断の3イベントが
+     正しいkind/conn_idで流れること、connIDが再利用されないこと、メールボックス
+     満杯でも切断イベントが必ず積まれることを確認。
+4. **Step 4: `conn_write`の実装（§5.4）**
+   - `HostConfig.Conns *ConnTable`を追加し`conn_write`をエクスポート。`Conns`が
+     nil（`-l`未指定）なら常に`-1`。
+   - `ConnTable.Write`: 不明なconnID→`-1`、ctxがdeadlineを持てば
+     `SetWriteDeadline`に反映、書き込み失敗は接続を閉じテーブルから削除し
+     PushDisconnectしてから`-1`、成功は`0`。範囲外ポインタも`-1`。
+   - `testdata/modules/conn_echo.wat`（新設）: kind=2ならconn_writeで書き戻し、
+     kind=1/3および未知のkindは無視してループ継続。
+   - 検証: 実際のTCPリスナー＋Goクライアントで`conn_echo.wasm`との往復、不明な
+     connIDへの`-1`、切断済み接続への書き込みが`-1`になり切断イベントが流れる
+     ことを確認。
+5. **Step 5: E2E・ドキュメント・仕上げ**
+   - `tests/connclient/main.go`（新設、Goで書く。3OSで同じ挙動を得るため`nc`に
+     頼らない）、`tests/e2e_conn.sh`（新設、TCPを使いUnixソケットパスを引数に
+     渡さずGit Bash/MSYSのパス変換を回避）。`.github/workflows/test.yml`に
+     3OS分のステップを追加。
+   - `docs/usage/execsandbox.md`を更新（`-l`実装済み化、§7.4書式表、kindの3種、
+     切断イベントの上限無視、`conn_write`の挙動、staleソケット非掃除、
+     Windowsの`unix:`接頭辞）。
+   - 仕様書§3.6への1文追記を提案する（承認を得てから編集）。
+   - `.claude/rules/naming.md`・`cli-output.md`の追記を検討。
+   - 「現在地」をフェーズ③完了へ更新し、完了判定リストを記載する。
+
+**検証方針（共通）**：各Stepとも`go build ./...`→`go vet ./...`→`gofmt -l .`→
+単体テスト→実際にビルド・スタンプした実行ファイルでの目視確認、を最小単位とする。
+`make check`/`make race`/`make test`をStep 1完了時（土台の変更が既存全体に及ぶ
+ため）・Step 5完了時に通す。コミットは各Step完了時に行う。pushは行わない。
+
 ## 現在地
 
-**フェーズ②（本体の作り込み）は完了した。次はフェーズ③（外部接続）に進む。**
+**フェーズ②（本体の作り込み）は完了した。フェーズ③（外部接続）に着手する。**
+Step 1（メールボックスのイベント型化）から開始する。
 
 Step 8（E2E拡張・ドキュメント追随・仕上げ）を完了した。
 
