@@ -52,6 +52,13 @@ jobs:
         shell: bash
         run: bash tests/e2e_policy.sh
 
+      # フェーズ③Step 5: -l/--listenとconn_writeによる外部接続を3OSで
+      # 確認する(TCPを使いUnixソケットパスを引数に渡さないことで、
+      # windows-latestのGit Bash/MSYSによるパス自動変換を回避している)。
+      - name: e2e (external connection)
+        shell: bash
+        run: bash tests/e2e_conn.sh
+
   # -raceはcgoを要求するため本体の「pure Go・CGO_ENABLED=0」方針とは別枠で扱う
   # （.claude/rules/testing.md「-raceの運用方針」）。windows-latestにはCコンパイラが
   # 標準で入っていないため対象から外す。
