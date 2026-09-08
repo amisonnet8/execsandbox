@@ -266,9 +266,87 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 `make check`/`make race`/`make test`をStep 1完了時（土台の変更が既存全体に及ぶ
 ため）・Step 5完了時に通す。コミットは各Step完了時に行う。pushは行わない。
 
+## フェーズ④のステップ
+
+ビルダーとリリースであるフェーズ④は、以下の6ステップで進める。
+`cmd/execsandbox-build`はまだ1行も存在しない。ビルダーは仕様書§6.3により
+自分自身に6環境分のベースバイナリを`//go:embed`で内包する設計であり、
+「ビルダーはembed、生成物はスタンプ」という二層構造
+（`.claude/rules/stamp.md`）を最初に成立させないとビルダー自体が
+`go build`できない（embed対象のファイルが存在しないため）。
+
+**事前確認済みの設計判断**：
+- `go install`は非対応とする。配布はGitHub Releasesの6本のみ
+  （`.claude/rules/distribution.md`の保留事項を解決）。
+- ライセンス表示義務を果たす主体は、ビルダーではなく**生成物
+  （`cmd/execsandbox`）側**に持たせる。第三者へ配布されるのは生成物であり、
+  配布者がビルダーを手元に持っているとは限らないため。ビルダー側には
+  同機能を追加しない。
+- 短縮フラグは`-L`（`--print-licenses`）とする。`.claude/rules/naming.md`の
+  原則（短縮形は小文字、`-V`のみ例外）に、`-V`＝バージョン／`-L`＝ライセンス
+  という対比で新たな例外を追加する。
+- 上記は仕様書§7.1・§10.1への変更を伴うが、計画段階で既に提案・承認済みの
+  ため実装時に再確認は取らない。
+
+1. **Step 1: ビルダーCLI足場 + クロスビルド土台（go:embedの成立）**
+   - `Makefile`に`cross-base`（6環境分の`cmd/execsandbox`を
+     `cmd/execsandbox-build/basebinaries/`へクロスビルド）を新設し、
+     `build`/`check`/`race`を依存させる。`.gitignore`に
+     `/cmd/execsandbox-build/basebinaries/`を追記。
+   - `cmd/execsandbox-build/{main,options,basebinaries}.go`（新設）：
+     `-o/--output`（必須）、`--target GOOS/GOARCH`（6通りのみ許可）、
+     `-h`/`-V`。
+2. **Step 2: スタンプ処理（書き込み側）の実装**
+   - `cmd/execsandbox-build/stamp.go`（新設）：フッター書き込み。
+     `tests/stamp`とは独立実装のまま残す。出力に実行ビット`0o755`
+     （Windowsはテストをガード）。
+   - 実機で生成物が実際に起動しWASMを実行できることまで確認。
+3. **Step 3: バージョン埋め込みと`-L/--print-licenses`（生成物側）**
+   - `cmd/execsandbox-build`に`var version = "dev"`を追加。公式リリースは
+     6本のベースバイナリと6本のビルダーを同じ`-X main.version=<tag>`で
+     一括ビルドすることで「ビルダーのバージョン＝生成物のバージョン」を
+     保証する。
+   - `cmd/execsandbox/licenses/`（新設）：`execsandbox.LICENSE`（リポジトリ
+     直下`LICENSE`のコピー）、`wazero.LICENSE`・`wazero.NOTICE`
+     （go.modのwazero v1.12.0からコピー）。go:embedの`..`参照不可のため
+     複製が必要。`licenses.go`でembedし`-L`で出力。
+   - 仕様書§7.1に`-L`行を追加、§10.1を実装済みとして書き直す。
+     `.claude/rules/naming.md`の例外を`-V`と`-L`の2つへ更新。
+     `docs/usage/execsandbox.md`を実測値で更新。
+   - `licenses_test.go`でリポジトリ直下`LICENSE`との一致を検証しドリフトを
+     検知する。
+4. **Step 4: Makefileの結線とビルダーのE2E確認**
+   - `tests/e2e_builder.sh`（新設）：実際にビルダーで検証用wasmをスタンプし、
+     生成物が動くことを確認（自環境向けは実行確認、クロス生成分は
+     バイト比較で担保）。`.github/workflows/test.yml`に3OS分追加。
+5. **Step 5: リリースパイプライン（`.github/workflows/release.yml`新設）**
+   - `v*`タグpushトリガー、`check`ジョブでゲート、`build`ジョブ
+     （`ubuntu-latest`1台、`CGO_ENABLED=0`）で6+6本をクロスビルドし
+     `sha256sum`付きで`gh release create`によりアップロード
+     （サードパーティActionsを増やさず`gh` CLIのみ使用）。
+6. **Step 6: README・ドキュメント仕上げ**
+   - `README.md`（新設）：クイックスタートのみ、詳細は`docs/`へリンク。
+   - `docs/usage/execsandbox-build.md`を実測値へ差し替え。
+   - リポジトリのメタデータ（Description/Topics）はユーザーが設定する
+     （案内のみ行う）。
+   - 「現在地」をフェーズ④完了へ更新。保留事項「バージョン埋め込み」等を
+     解決済みへ更新する。
+
+**検証方針（共通）**：各Stepとも`go build ./...`→`go vet ./...`→
+`gofmt -l .`→単体テスト→実際にビルドしたビルダーでの目視確認、を最小単位
+とする。`make check`/`make race`/`make test`をStep 1完了時（go:embedの
+土台が既存全体に影響するため）・Step 6完了時に通す。コミットは各Step完了時
+に行う。pushは行わない。タグのpush・実際のリリース作成は本フェーズの
+範囲外とし、release.ymlはワークフロー定義のレビューまでに留める。
+
 ## 現在地
 
-**フェーズ③（外部接続）は完了した。次はフェーズ④（ビルダーとリリース）に進む。**
+**フェーズ③（外部接続）は完了した。フェーズ④（ビルダーとリリース）に
+着手する。** Step 1（ビルダーCLI足場 + クロスビルド土台）から開始する。
+
+---
+
+以下はフェーズ③の記録。
 
 Step 5（E2E・ドキュメント追随・仕上げ）を完了した。
 

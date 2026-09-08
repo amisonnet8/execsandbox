@@ -28,6 +28,23 @@ jobs:
             exit 1
           fi
 
+      # フェーズ④Step 1: cmd/execsandbox-buildは仕様書§6.3により6環境分の
+      # cmd/execsandboxを//go:embedで内包する。埋め込み対象はコミットしない
+      # (.gitignore)ため、このパッケージをgo build/go vet/go testする前に
+      # 用意しておく必要がある(Makefileの`cross-base`ターゲットと同じ内容。
+      # windows-latestは既定シェルがpwshで`VAR=value command`構文を解釈
+      # できないため、shell: bashを明示する)。
+      - name: build base binaries (for go:embed)
+        shell: bash
+        run: |
+          mkdir -p cmd/execsandbox-build/basebinaries
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_linux_amd64     ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_linux_arm64     ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_darwin_amd64    ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_darwin_arm64    ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_windows_amd64.exe ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_windows_arm64.exe ./cmd/execsandbox
+
       - name: go vet
         run: go vet ./...
 
@@ -73,6 +90,18 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+
+      # フェーズ④Step 1: 上のtestジョブと同じ理由(go:embedの前提)。
+      - name: build base binaries (for go:embed)
+        shell: bash
+        run: |
+          mkdir -p cmd/execsandbox-build/basebinaries
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_linux_amd64     ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_linux_arm64     ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_darwin_amd64    ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_darwin_arm64    ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_windows_amd64.exe ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_windows_arm64.exe ./cmd/execsandbox
 
       - name: race tests
         env:

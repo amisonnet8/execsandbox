@@ -2,3 +2,8 @@
 /dist/
 *.test
 *.out
+
+# フェーズ④: cmd/execsandbox-buildがgo:embedで内包する6環境分のベース
+# バイナリ。`make cross-base`で生成する配布物であり、コミットしない
+# （.claude/rules/distribution.md）。
+/cmd/execsandbox-build/basebinaries/
