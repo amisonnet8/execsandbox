@@ -92,7 +92,57 @@ TinyGo向けSDKに加えて**他言語のSDKを最低1つ**実装し、ABIが本
 
 ## 現在地
 
-**フェーズ①/ Step 2 完了 → Step 3（未着手）**
+**フェーズ①/ Step 3 完了 → Step 4（未着手）**
+
+Step 3（最小の実行経路）を完了した。
+
+- `sandbox/mailbox.go` — `Mailbox`（上限付きFIFOキュー、tail-drop）を実装。
+  `Push`は上限到達時にtail-dropしレート制限付きでログ出力、`Recv(ctx, bufCap)`
+  はメッセージがバッファに収まらない場合`data=nil`かつ必要サイズを返し
+  **メッセージをキューに残す**（仕様書§5.3の「バッファ不足時はメールボックスに
+  残る」を素直に満たすため、内部はチャネルではなくmutex保護のスライス＋
+  通知チャネルで実装し、先頭を覗いてから収まる場合のみ取り除く設計とした）。
+- `sandbox/ratelimit.go` — tail-drop・フレーム長超過向けの共通レート制限
+  ロガー（初回即時、以降は一定間隔で累計数をまとめて出力。
+  `.claude/rules/cli-output.md`）。
+- `sandbox/host.go` — `RegisterHostModule`で`send`/`recv`/`max_frame`を
+  wazeroの`execsandbox`ホストモジュールとして登録。
+  - `send`: `MaxFrame`超過はログを残して破棄。宛先解決（`-d`）・AF_UNIX接続
+    （Step 4）が未実装のため、それ以外はすべて「宛先未割り当て」として
+    仕様書§3.4通り無言で破棄する。範囲外ポインタもクラッシュせず無視する。
+  - `recv`: `timeout_ms`の負値（無限待ち）・0（即時）・正値（期限付き）を
+    すべて`context.WithTimeout`で実装（PLAN保留事項が提案していた方式）。
+    ただし外部からの強制キャンセル（`-t`等）との連携はフェーズ②で扱う。
+    `meta_ptr`/`buf_ptr`の範囲外チェックをメールボックス操作の**前**に行い、
+    ゲストの誤用でメッセージを失わないようにした。
+  - `max_frame`: 設定値をそのまま返す。
+- `cmd/execsandbox/main.go` — Step 2の「バイト数を報告するだけ」を、実際に
+  `wazero`でゲストを実行する処理に置き換えた。ホスト関数登録後
+  `rt.Instantiate`を呼ぶことで、wazeroの既定`StartFunctions`（`"_start"`）が
+  ゲストのエントリポイントを自動実行する（WASI CLIモジュールの慣習。
+  仕様書§5.6の表でも引数・環境変数等はWASI標準に委ねるとしており、
+  ゲストはWASI Preview 1モジュールである前提のため、これに倣った）。
+  `-b`/`-f`はまだ未実装のため、仕様書§7.1の既定値（1024通/1MiB）を
+  ハードコードしている。**WASI（`wasi_snapshot_preview1`）自体はまだ
+  組み込んでいない**（今回のテスト用モジュールが不要としていたため）。
+  TinyGo製モジュールや`-e`/`-v`/`-s`等を扱うタイミングで追加する。
+- `testdata/modules/host_probe.wat` — 本実装（Step1のspikeとは異なり仮実装
+  ではない）のsend/recv/max_frameを検証する新モジュール。個別exportで
+  パラメータを自由に変えたテスト（オーバーサイズ送信、バッファ不足recv等）と、
+  `_start`経由の自動起動（本番の経路）の両方を1モジュールでカバーする。
+- テスト: `sandbox/mailbox_test.go`（FIFO順序、tail-drop、バッファ不足で
+  メッセージが残ること、タイムアウト、Push待ちの解除）、
+  `sandbox/host_test.go`（max_frame、送信ログの有無、受信の各分岐、
+  `_start`自動実行によるエコー）。`make race`も通過。
+- **実際の動作確認**: `cmd/execsandbox`をビルドし、`host_probe.wasm`を
+  スタンプして実行。ゲストの`_start`が`recv(timeout_ms=-1)`で正しく
+  ブロックすることを確認した（このプロセス単体では他に`Push`する
+  goroutineが存在しないため、Goランタイムの「all goroutines are asleep -
+  deadlock」で停止する。これはバグではなく、AF_UNIXの受信ループ
+  （Step 4で追加）がまだ存在しないために生じる、この段階で織り込み済みの
+  状態である。Step 4でリスナーgoroutineが常駐するようになれば解消する）。
+
+**フェーズ①/ Step 2 完了**
 
 Step 2（スタンプ方式の実装）を完了した。
 
@@ -149,9 +199,9 @@ Step 1（足場固め＋技術検証）を完了した。
     `.wat`ソースと`.wasm`成果物の両方をコミットする。CIに`wat2wasm`の導入を
     前提にしない。
 
-次に着手すべきは **Step 3: 最小の実行経路**（埋め込まれたWASMを取り出し
-`wazero`で実行する。ホスト関数`send`/`recv`/`max_frame`の登録、メールボックス
-（上限付きキュー、tail-drop）の実装）。
+次に着手すべきは **Step 4: サンドボックス間通信**（AF_UNIXでの待ち受けと接続、
+フレーミング〔長さプレフィックス〕、`-n`/`-d`によるID解決とケイパビリティ、
+遅延接続）。
 
 ## 保留事項
 
@@ -173,9 +223,12 @@ Step 1（足場固め＋技術検証）を完了した。
   `wat2wasm`でコンパイルし、`.wat`ソースと`.wasm`成果物を両方コミットする
   （`.claude/rules/testing.md`「現時点のツールチェーン方針」）。`.wat`編集後は
   `make testdata`で再生成する。TinyGoは引き続き未導入（必要になった時点で追加）。
-- **`recv` のタイムアウト実装方式** — Goのホスト関数側で `select` + `time.After`
-  で実装するのが素直だが、wazeroのコンテキストキャンセルとの兼ね合いを
-  フェーズ②で確認する。
+- **`recv` のタイムアウト実装方式** — **`timeout_ms`自体の意味論はStep 3で
+  実装済み**（`context.WithTimeout`、負値=無限待ち・0=即時・正値=期限付き。
+  `sandbox/host.go`）。残る論点は、`-t/--timeout`等でプロセス全体を強制終了
+  する際に、`recv`でブロック中のゲストをどう安全に中断するか（wazero側の
+  コンテキストキャンセルとの連携）。これはフェーズ②で`-t`を実装する際に
+  確認する。
 - **バージョン埋め込み** — ExecDBは `-ldflags -X main.version=` を使っていた。
   ExecSandboxでは本体とビルダーの2つにバージョンがあり、さらに生成物が
   「どのバージョンの本体でスタンプされたか」を持つ。フッターのversionフィールドと
