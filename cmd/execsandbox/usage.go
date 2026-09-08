@@ -32,6 +32,7 @@ Options:
   -q, --quiet                     suppress host-side logging
   -h, --help                      show this help message
   -V, --version                   print the version
+  -L, --print-licenses            print third-party license notices and exit
 
 Sizes (-m, -f) accept K/M/G suffixes (1024-based), case-insensitive, with an
 optional "i" (e.g. 512M, 512Mi). A number with no suffix is bytes.

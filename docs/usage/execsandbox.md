@@ -7,7 +7,7 @@
 <実行ファイル> [オプション...] [-- WASMへの引数...]
 ```
 
-**本ページの内容はフェーズ③完了時点（仕様書§7.1の全オプション実装済み）
+**本ページの内容はフェーズ④Step3完了時点（仕様書§7.1の全オプション実装済み）
 の実測値。** `--help` の実際の出力は次の通り（`-V`/`-h` はビルド時の
 `-ldflags -X main.version=` 埋め込み前の開発ビルドでは `dev` と表示される）。
 
@@ -37,6 +37,7 @@ Options:
   -q, --quiet                     suppress host-side logging
   -h, --help                      show this help message
   -V, --version                   print the version
+  -L, --print-licenses            print third-party license notices and exit
 
 Sizes (-m, -f) accept K/M/G suffixes (1024-based), case-insensitive, with an
 optional "i" (e.g. 512M, 512Mi). A number with no suffix is bytes.
@@ -62,6 +63,7 @@ Everything after "--" is passed to the WASM module as its arguments.
 | `-q` | `--quiet` | — | ホスト側ログの抑制 | 出力する |
 | `-h` | `--help` | — | ヘルプ | — |
 | `-V` | `--version` | — | バージョン | — |
+| `-L` | `--print-licenses` | — | 著作権表示・ライセンス全文の表示 | — |
 
 `-v` はマウント（volume）であり、verbose ではない。バージョンは `-V`。
 
@@ -311,6 +313,31 @@ WASMモジュール側は番号のみを指定して送信する（`Send(1, data
 ExecSandbox本体が出力するログ（`execsandbox:` で始まる行）を抑制する。
 WASMモジュール側の出力（`-s err`）には影響しない。
 
+### `-L, --print-licenses`
+
+```
+./mydb -L
+```
+
+生成された実行ファイルには、ExecSandbox本体（MIT）と `wazero`
+（Apache-2.0）のコードが含まれる。**この実行ファイルを第三者へ配布する
+場合、両者の著作権表示とライセンス全文（wazeroはNOTICEも）を同梱する
+義務が生じる。** `-L, --print-licenses` は、その義務を果たすために必要な
+文面をすべて標準出力へ書き出す。`--help`/`--version` と同様、WASMモジュール
+の有無に関わらず動作し、`-q` の影響も受けない。
+
+表示義務を果たす主体を `execsandbox-build`（ビルダー）ではなく**生成された
+実行ファイル自体**に持たせているのは、第三者へ配布されるのは生成物であり、
+配布者がビルダーを手元に持っているとは限らないため。生成物自身が文面を
+出力できれば、配布者がビルダーへのアクセスを失っていても義務を果たせる。
+
+```
+$ ./mydb -L | head -3
+ExecSandbox
+Licensed under the MIT License. Full text below.
+
+```
+
 ## ホスト側ログ
 
 本体は標準エラー出力へ `execsandbox:` を接頭辞としてログを出す。
@@ -344,6 +371,7 @@ execsandbox: execution timed out after 30s
 | :--- | :--- | :--- |
 | `--help` / `-h` | 0 | 標準出力 |
 | `--version` / `-V` | 0 | 標準出力 |
+| `--print-licenses` / `-L` | 0 | 標準出力 |
 | オプションの誤り（未定義のフラグ、値の書式違反、`-v`のホストパスが存在しないなど） | 2 | 標準エラー出力（`execsandbox:`接頭辞、`-q`でも抑制されない） |
 | WASMモジュールが埋め込まれていない、ホスト関数登録の失敗など（起動できなかった場合） | 1 | 標準エラー出力（`execsandbox:`接頭辞） |
 | `--timeout` の期限に達し強制終了された場合 | 124 | ログは`-q`で抑制可 |

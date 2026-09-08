@@ -61,6 +61,7 @@ type options struct {
 	quiet        bool
 	help         bool
 	version      bool
+	licenses     bool
 	guestArgs    []string // "--"以降
 }
 
@@ -125,11 +126,14 @@ func parseArgs(args []string) (*options, error) {
 	fs.BoolVar(&opts.version, "V", false, "print the version")
 	fs.BoolVar(&opts.version, "version", false, "print the version")
 
+	fs.BoolVar(&opts.licenses, "L", false, "print third-party license notices and exit")
+	fs.BoolVar(&opts.licenses, "print-licenses", false, "print third-party license notices and exit")
+
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
 
-	if opts.help || opts.version {
+	if opts.help || opts.version || opts.licenses {
 		return opts, nil
 	}
 

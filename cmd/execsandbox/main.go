@@ -48,6 +48,10 @@ func main() {
 		fmt.Fprintf(os.Stdout, "execsandbox %s\n", version)
 		os.Exit(0)
 	}
+	if opts.licenses {
+		writeLicenses(os.Stdout)
+		os.Exit(0)
+	}
 
 	exitCode, err := run(opts)
 	if err != nil {
