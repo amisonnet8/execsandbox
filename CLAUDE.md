@@ -48,6 +48,9 @@ WASM実行ランタイムとWASMモジュールを1つの実行ファイル内�
   6倍に増幅される構造）
 - **`.claude/rules/distribution.md`** — 配布方法（本体とビルダーの二段リリース、
   生成物のライセンス表示義務、リポジトリのDescription/Topics）
+- **`.claude/rules/wazero-quirks.md`** — `wazero`固有の落とし穴（乱数・時刻の
+  既定がサンドボックス寄りで仕様と逆転している点、`WithMemoryLimitPages`の
+  panic条件、`WithCloseOnContextDone`の実効的な挙動など）
 
 これらのルールファイルは、実装中に得た細かい気づき・教訓を Claude Code 自身が
 育てていくものである。新しく気づいたルール・過去に踏んだ落とし穴などがあれば、
