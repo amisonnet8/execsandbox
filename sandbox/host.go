@@ -30,6 +30,10 @@ type HostConfig struct {
 	MaxFrame int
 	// Log はホスト側ログ（tail-drop、フレーム長超過）の出力先。
 	Log io.Writer
+	// Dest は起動時オプション(-d)による宛先番号の割り当てと、宛先ごとの
+	// 遅延接続を保持する。nilの場合はすべての宛先が未割り当てとして扱われる
+	// （-nも-dも指定しない、送信専用でも受信専用でもない構成に相当）。
+	Dest *DestTable
 }
 
 // RegisterHostModule はcfgに基づき"execsandbox"モジュールをwazeroへ登録する。
@@ -53,10 +57,7 @@ func RegisterHostModule(ctx context.Context, rt wazero.Runtime, cfg HostConfig) 
 //
 // 戻り値を持たず、以下の場合いずれも黙ってメッセージを破棄する。
 //   - 送信データ長がMaxFrameを超える（ただしこちらはログに残す）
-//   - 宛先番号が未割り当て、または宛先が未起動・接続不可
-//
-// フェーズ①Step3時点では宛先解決（-d）・AF_UNIX接続（フェーズ①Step4）を
-// 実装していないため、すべての宛先が「未割り当て」として扱われる。
+//   - 宛先番号が未割り当て、または宛先が未起動・接続不可（DestTable.Sendの責務）
 func (cfg HostConfig) sendFunc(frameLog *rateLimitedCounter) func(ctx context.Context, mod api.Module, dest, ptr, length uint32) {
 	return func(ctx context.Context, mod api.Module, dest, ptr, length uint32) {
 		if int(length) > cfg.MaxFrame {
@@ -67,14 +68,18 @@ func (cfg HostConfig) sendFunc(frameLog *rateLimitedCounter) func(ctx context.Co
 			return
 		}
 
-		if _, ok := mod.Memory().Read(ptr, length); !ok {
+		data, ok := mod.Memory().Read(ptr, length)
+		if !ok {
 			// ゲストの誤用（範囲外ポインタ）。sendは戻り値を持たないため、
 			// 安全側に倒して黙って無視する。
 			return
 		}
 
-		// Step4でAF_UNIX接続と宛先テーブルを実装した際、ここでdestへ転送する。
-		_ = dest
+		if cfg.Dest != nil {
+			// dataはゲストの線形メモリを直接指すビューであり、DestTable.Sendは
+			// 呼び出しの間に同期的にWriteFrameし終えるため、コピーせず渡してよい。
+			cfg.Dest.Send(dest, data)
+		}
 	}
 }
 

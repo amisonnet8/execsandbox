@@ -92,7 +92,51 @@ TinyGo向けSDKに加えて**他言語のSDKを最低1つ**実装し、ABIが本
 
 ## 現在地
 
-**フェーズ①/ Step 3 完了 → Step 4（未着手）**
+**フェーズ①/ Step 4 完了 → Step 5（未着手）**
+
+Step 4（サンドボックス間通信）を完了した。
+
+- `sandbox/address.go` — IDからソケットパスへの解決（仕様書§3.2）。
+  `resolveSocketPath(goos, xdgRuntimeDir, localAppData, uid, id)`という
+  内部関数にGOOSと環境変数を引数として切り出し、実行環境によらず
+  Windows分岐まで含めて単体テストできるようにした。Windows分岐は
+  `filepath.Join`（コンパイル先OSのセパレータを使ってしまう）を使わず
+  手組みで`\`区切りにしている。
+- `sandbox/framing.go` — 長さプレフィックス（u32 LE）でのフレーミング
+  （仕様書§3.5）。`ReadFrame`は宣言長が`maxFrame`を超える場合、
+  `io.CopyN(io.Discard, ...)`でペイロード分を読み捨ててストリームの同期を
+  保ったまま`oversized=true`を返す（呼び出し側がログを出し次のフレームへ
+  進める）。
+- `sandbox/listener.go` — `Listen(id)`は仕様書§3.2の「既存ソケットファイルに
+  接続を試み、応答があれば別プロセスが稼働中としてエラー、なければstaleと
+  みなして削除してからbind」を実装。`Serve`はaccept loop
+  で各接続をgoroutine化し、受信フレームをMailboxへ積む。オーバーサイズ
+  フレームは受信側でもレート制限付きでログする
+  （送信側とは独立した検証点。仕様書§3.5）。
+- `sandbox/dest.go` — `DestTable`が宛先番号→IDの割り当てと、宛先ごとの
+  遅延接続（初回送信時に確立、失敗時は次回再試行）を保持する。未割り当て・
+  未接続の宛先への送信は仕様書§3.4通りログを出さず黙って捨てる。
+- `sandbox/host.go`の`send`実装を、Step3の「常に無言破棄」スタブから
+  `cfg.Dest.Send`呼び出しに置き換えた。
+- `cmd/execsandbox/main.go` — 標準`flag`パッケージで`-n/--name`・
+  `-d/--dest`（繰り返し可、`N=ID`）を実装。**仕様書§7.1の残りのオプション
+  （-e/-v/-m/-b/-f/-l/-s/-t/-x/-q/-h/-V）と、エラーメッセージの
+  `execsandbox:`接頭辞への統一はフェーズ②の作り込みで行う** —
+  Step4時点でのフラグ解析エラーは`flag`パッケージ自身の出力（接頭辞なし）の
+  まま許容している。`-n`指定時のみ`sandbox.Listen`+`sandbox.Serve`を
+  goroutineで起動する。
+- テスト: `sandbox/address_test.go`（3環境の path解決）、
+  `sandbox/framing_test.go`（往復・オーバーサイズ時の同期維持・EOF）、
+  `sandbox/listener_test.go`（実ソケットでのListen+DestTable往復、
+  stale socket のクリーンアップ、二重listen の拒否）。`make race`も通過。
+- **実際の動作確認**: ビルドした`cmd/execsandbox`を使い、(a)不正な`-d`値で
+  即座にエラー終了、(b)同一`-n`での二重起動が
+  `another instance is already listening`で拒否される、(c)`kill -9`後の
+  stale socketが次回起動時に自動的に片付けられる、(d)**2つの実プロセス**
+  （送信専用のnodeAと、`host_probe.wasm`を積んだ受信専用のnodeB）を実際に
+  起動し、`-d 1=nodeB`で送ったメッセージをnodeBが`recv`で受け取り
+  正常終了することを確認した。2プロセスを跨いだ本格的なE2Eスクリプト化・
+  CI連携はStep 5の範囲のため、ここでは手動確認に留めている。
 
 Step 3（最小の実行経路）を完了した。
 
@@ -199,9 +243,9 @@ Step 1（足場固め＋技術検証）を完了した。
     `.wat`ソースと`.wasm`成果物の両方をコミットする。CIに`wat2wasm`の導入を
     前提にしない。
 
-次に着手すべきは **Step 4: サンドボックス間通信**（AF_UNIXでの待ち受けと接続、
-フレーミング〔長さプレフィックス〕、`-n`/`-d`によるID解決とケイパビリティ、
-遅延接続）。
+次に着手すべきは **Step 5: 疎通確認とCI**（2つのサンドボックスを起動して
+片方から他方へメッセージが届くことを確認するE2Eスクリプト、GitHub Actions
+3OSマトリクス。特にWindowsでのAF_UNIX疎通を早期に確認する）。
 
 ## 保留事項
 
