@@ -1,0 +1,124 @@
+name: release
+
+# フェーズ④Step5: v*タグのpushをトリガーに、6環境分のビルダー
+# (execsandbox-build_<tag>_<goos>_<goarch>)をGitHub Releasesへ公開する
+# (.claude/rules/distribution.md)。
+#
+# buildの前にcheck(gofmt/vet/unit tests、`make check`相当)を挟むのは、
+# CIを経ていないコミットへタグを打つ事故を防ぐ安全網(distribution.md)。
+# test.ymlの3OSマトリクス・E2Eはpush/pull_request側で既に検証済みという
+# 前提のため、ここでは再実行しない(軽量なゲートに留める)。
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: gofmt check
+        shell: bash
+        run: |
+          fmt_out="$(gofmt -l .)"
+          if [ -n "$fmt_out" ]; then
+            echo "$fmt_out" 1>&2
+            echo "gofmt: above files are not formatted" 1>&2
+            exit 1
+          fi
+
+      # cmd/execsandbox-buildはgo:embedで6環境分のcmd/execsandboxを
+      # 内包するため、go vet/go testの前に用意しておく必要がある
+      # (test.ymlの同名ステップと同内容)。
+      - name: build base binaries (for go:embed)
+        shell: bash
+        run: |
+          mkdir -p cmd/execsandbox-build/basebinaries
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_linux_amd64     ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_linux_arm64     ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_darwin_amd64    ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_darwin_arm64    ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_windows_amd64.exe ./cmd/execsandbox
+          CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -o cmd/execsandbox-build/basebinaries/execsandbox_windows_arm64.exe ./cmd/execsandbox
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: unit tests
+        run: go test -count=1 ./...
+
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      # 手順1: 6環境分のcmd/execsandbox(ベースバイナリ)を、pushされた
+      # タグ名(github.ref_name)を-ldflags -X main.version=で埋め込んで
+      # クロスビルドする。git describeではなくタグ名そのものを使うのは、
+      # リリースビルドではタグ自体が真実の源であり"-dirty"サフィックス等の
+      # 曖昧さがないため(.claude/rules/distribution.md)。
+      - name: cross-build base binaries (cmd/execsandbox)
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ github.ref_name }}"
+          mkdir -p cmd/execsandbox-build/basebinaries
+          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            goos="${t%/*}"
+            goarch="${t#*/}"
+            out="cmd/execsandbox-build/basebinaries/execsandbox_${goos}_${goarch}"
+            if [ "$goos" = "windows" ]; then out="${out}.exe"; fi
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" go build -ldflags "-X main.version=$version" -o "$out" ./cmd/execsandbox
+          done
+
+      # 手順2: 6環境分のcmd/execsandbox-build(ビルダー)を、手順1と同じ
+      # タグ名でクロスビルドする。同じ-X main.version=を使うことで
+      # 「ビルダーのバージョン＝生成物のバージョン」(仕様書§6.3)を保証する
+      # (ビルダー実行時に埋め込み済みのbase binaryのバージョンを動的に
+      # 書き換えることはできないため、ビルド手順で一致を作る)。
+      - name: cross-build the builder (cmd/execsandbox-build)
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ github.ref_name }}"
+          mkdir -p dist
+          for t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            goos="${t%/*}"
+            goarch="${t#*/}"
+            out="dist/execsandbox-build_${version}_${goos}_${goarch}"
+            if [ "$goos" = "windows" ]; then out="${out}.exe"; fi
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" go build -ldflags "-X main.version=$version" -o "$out" ./cmd/execsandbox-build
+          done
+
+      # 手順3: 各アセットにsha256sumを添付する(.claude/rules/distribution.md
+      # 「各アセットにsha256sumの出力を.sha256ファイルとして添付する」)。
+      - name: checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          for f in *; do
+            sha256sum "$f" >"$f.sha256"
+          done
+
+      # 手順4: GitHub Releasesへ公開する。サードパーティActionsを増やさず、
+      # ランナー標準搭載のgh CLIとGITHUB_TOKENのみを使う。
+      - name: create release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ github.ref_name }}" dist/* --title "${{ github.ref_name }}" --generate-notes
