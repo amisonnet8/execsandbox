@@ -188,7 +188,41 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 
 ## 現在地
 
-**フェーズ②/ Step 3 完了 → Step 4（未着手）**
+**フェーズ②/ Step 4 完了 → Step 5（未着手）**
+
+Step 4（WASI組み込みとModuleConfig土台：`-s`/`-e`/`--`引数）を完了した。
+
+- `sandbox/policy.go`（新設）: `Policy`構造体（`Env []EnvVar`・`Stdio`・
+  `Args`・`Stdin`/`Stdout`/`Stderr`）と`ModuleConfig()`。書式解釈（cmd側）と
+  wazeroへの翻訳（sandbox側）を分担する計画通りの切り分け。`Stdio`の各項目が
+  falseのままなら対応する`With*`を一切呼ばず、wazeroの既定
+  （Stdinはio.EOF、Stdout/Stderrはio.Discard）に委ねることで「明示的に
+  有効化しない限り何もできない」原則を保った。`RuntimeConfig()`は当面
+  追加していない（メモリ上限・乱数時刻・タイムアウトが実際にRuntimeConfig
+  側を必要とするのはStep 5/6/7からのため、今この時点で中身のない
+  メソッドを足すのは避けた。計画時点ではwazeroの実際のAPI配置
+  ―`WithRandSource`等は実は`ModuleConfig`側にあり`RuntimeConfig`では
+  ない―を確認できていなかった。使う段になったら該当Stepで追加する）。
+- `main.go`: `wasi_snapshot_preview1.Instantiate(ctx, rt)`を追加。
+  `rt.Instantiate`を`rt.InstantiateWithConfig(ctx, wasmBytes,
+  policy.ModuleConfig())`へ変更。`opts.env`/`opts.stdio`/`opts.guestArgs`から
+  `sandbox.Policy`を組み立てる（`stdioSet`→`sandbox.Stdio`は同一形状の構造体
+  変換、`envVar`→`sandbox.EnvVar`は`toSandboxEnv`で変換）。
+- `testdata/modules/wasi_probe.wat`（新設）: `args_get`/`environ_get`/
+  `fd_write`を直接import。`_start`はargv_buf・改行・environ_buf・改行を
+  1回の`fd_write`（iovec4本）でfd=1へ書き出す。個別検証用に`argc_probe`/
+  `environc_probe`（件数のみを返す）も持つ。
+- `sandbox/policy_test.go`（新設）: `-s out`なしではstdoutが空のまま
+  （既定遮断）・`-s out`ありで`argv0="execsandbox"`＋`--`以降の引数＋
+  環境変数が実際にゲストへ届くこと・stdin/stderr未接続でもエラーに
+  ならないこと・`argc_probe`/`environc_probe`の件数一致を確認。
+- **実際の動作確認**: `wasi_probe`をスタンプし、`-s out -e A=1 -- x y`の
+  実行結果を`od -c`で確認（`execsandbox\0x\0y\0\nA=1\0\n`が得られた）。
+  `-s`を付けない既定では標準出力が完全に空になることも確認した。
+  `tests/e2e_basic.sh`を含む既存の単体テスト・E2Eを全て再実行し、WASI登録が
+  既存モジュール（`host_probe`等）に影響しないことを確認した。`go build`/
+  `go vet`/`gofmt -l`/`go test`/`make race`/`make check`/`make test`
+  すべてgreen。
 
 Step 3（ログの統一とバックプレッシャー〔`-q`/`-b`/`-f`〕の実配線）を完了した。
 
