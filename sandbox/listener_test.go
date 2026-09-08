@@ -6,13 +6,39 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
 
-func TestListenAndDestTable_roundTrip(t *testing.T) {
-	dir := t.TempDir()
+// newTestRuntimeDir はXDG_RUNTIME_DIRベースのテストに使う短い一時ディレクトリを
+// 用意し、環境変数を設定する。
+//
+// t.TempDir()（内部的にはos.TempDir()、macOSでは$TMPDIRの
+// "/var/folders/.../T/..." という長いパス）をそのまま使うと、AF_UNIXの
+// sun_path上限（Linuxは108バイト、macOSは104バイト程度と、より短い）を
+// 超えて "bind: invalid argument" になることがある。実際にGitHub Actionsの
+// macos-latestで踏んだため、/tmp直下に短い名前で作る。
+//
+// Windowsは仕様上XDG_RUNTIME_DIRを一切参照しない（ResolveSocketPathの
+// windows分岐は%LOCALAPPDATA%のみを見る）ため、この関数を使うテストは
+// Windowsでは意味を持たずスキップする。
+func newTestRuntimeDir(t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("XDG_RUNTIME_DIR is not consulted on windows (see ResolveSocketPath)")
+	}
+	dir, err := os.MkdirTemp("/tmp", "exb")
+	if err != nil {
+		t.Fatalf("MkdirTemp: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
 	t.Setenv("XDG_RUNTIME_DIR", dir)
+	return dir
+}
+
+func TestListenAndDestTable_roundTrip(t *testing.T) {
+	newTestRuntimeDir(t)
 
 	mailbox := NewMailbox(4, &bytes.Buffer{})
 	l, err := Listen("nodeB")
@@ -36,8 +62,7 @@ func TestListenAndDestTable_roundTrip(t *testing.T) {
 }
 
 func TestListen_staleSocketIsCleanedUp(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("XDG_RUNTIME_DIR", dir)
+	dir := newTestRuntimeDir(t)
 
 	// 前回のプロセスが残したstaleなソケットファイルを模倣する
 	// （誰も待ち受けていない、ただのファイル）。
@@ -62,8 +87,7 @@ func TestListen_staleSocketIsCleanedUp(t *testing.T) {
 }
 
 func TestListen_rejectsWhenAlreadyListening(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("XDG_RUNTIME_DIR", dir)
+	newTestRuntimeDir(t)
 
 	l1, err := Listen("nodeD")
 	if err != nil {

@@ -5,7 +5,6 @@ package sandbox
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -18,19 +17,23 @@ func ResolveSocketPath(id string) (string, error) {
 // resolveSocketPath はResolveSocketPathの中身。GOOSや環境変数を引数で受け取り、
 // 実行環境に依存せずテストできるようにしている。
 func resolveSocketPath(goos, xdgRuntimeDir, localAppData string, uid int, id string) (string, error) {
+	// filepath.Joinはコンパイル先OSのセパレータを使ってしまう（Windows向けに
+	// ビルドしたバイナリでは、goos引数に何を渡しても"\"で結合される）。
+	// ここではgoos引数の値に応じたセパレータを常に一貫させたいので、
+	// path/filepathを使わず両分岐とも手組みする。これによりLinux上のテストで
+	// windows分岐を検証できる（逆にWindows上でのテストでもunix分岐が
+	// 期待通り"/"になる）。
 	if goos == "windows" {
 		if localAppData == "" {
 			return "", fmt.Errorf("%%LOCALAPPDATA%% is not set")
 		}
-		// filepath.Joinはコンパイル先OSのセパレータ（Linux上では"/"）を使って
-		// しまうため、Windows形式のパスは手組みする。これはLinux上のテストで
-		// windows分岐を検証できるようにするための実装上の都合でもある。
 		base := strings.TrimRight(localAppData, `\/`)
 		return base + `\execsandbox\` + id + `.sock`, nil
 	}
 
 	if xdgRuntimeDir != "" {
-		return filepath.Join(xdgRuntimeDir, "execsandbox", id+".sock"), nil
+		base := strings.TrimRight(xdgRuntimeDir, "/")
+		return base + "/execsandbox/" + id + ".sock", nil
 	}
-	return filepath.Join(fmt.Sprintf("/tmp/execsandbox-%d", uid), id+".sock"), nil
+	return fmt.Sprintf("/tmp/execsandbox-%d/%s.sock", uid, id), nil
 }

@@ -112,6 +112,23 @@ ExecDBがCI上でのみ顕在化した問題を踏んでいる。手元Linuxで�
   パーミッションを検証するテストは失敗する。`runtime.GOOS != "windows"` で
   そのアサーションだけガードすること。**ビルダーの出力に実行ビットを立てる
   実装をテストする際、必ず該当する。**
+- **`path/filepath` はコンパイル先OSのセパレータを使う。** GOOSを引数として
+  受け取り複数OS分の分岐をテストする関数（`sandbox.ResolveSocketPath`等）で
+  `filepath.Join`を使うと、実際にはビルド対象OSのセパレータで結合されて
+  しまい、引数で渡した"想定OS"とは無関係になる。**Windowsランナー上で
+  「Linuxのパス形式」を検証するテストが、パスの区切りが`\`になって
+  失敗する**、という形で顕在化した（手元Linuxでは`\`と`/`の違いに
+  気づけない）。GOOSを明示的に扱うパス生成コードは`path/filepath`を使わず、
+  文字列結合で手組みすること。
+- **AF_UNIXのソケットパスには`sun_path`の上限がある（Linux ~108バイト、
+  macOSはさらに短く~104バイト程度）。** `t.TempDir()`（内部的には
+  `os.TempDir()`）が返すパスは、**macOSでは`$TMPDIR`が
+  `/var/folders/xx/.../T/...`という長いパスに設定されており**、
+  ソケットファイル名まで含めるとこの上限を超えて`bind: invalid argument`で
+  失敗することがある。手元Linux（`/tmp`は短い）はもちろん、GitHub Actionsの
+  `ubuntu-latest`でも再現せず、**`macos-latest`でのみ顕在化した**。AF_UNIXの
+  ソケットファイルを作るテストは`t.TempDir()`に頼らず、`/tmp`直下に短い名前で
+  明示的に作ること。
 
 ## `-race` の運用方針
 

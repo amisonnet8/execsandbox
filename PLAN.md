@@ -98,9 +98,35 @@ TinyGo向けSDKに加えて**他言語のSDKを最低1つ**実装し、ABIが本
 
 ## 現在地
 
-**フェーズ①/ Step 5 実装完了 → リモートpushとCI結果待ち**
+**フェーズ①/ Step 5 実装完了 → CI失敗を修正、再push待ち**
 
-Step 5（疎通確認とCI）を実装した。
+Step 5（疎通確認とCI）を実装しpushしたところ、`test(macos-latest)`・
+`test(windows-latest)`・`race(macos-latest)`がFAILした。いずれも
+ExecSandbox自身の実装バグであり、以下の通り修正済み（詳細と教訓は
+`.claude/rules/testing.md`「クロスプラットフォームCIの落とし穴」に追記した）。
+
+1. **Windows: `TestResolveSocketPath`のunix分岐が失敗** —
+   `sandbox/address.go`の`resolveSocketPath`が、windows分岐だけ
+   `path/filepath`を避けて手組みにしていたが、**unix分岐（XDG_RUNTIME_DIR・
+   /tmpフォールバック）では`filepath.Join`を使ったままだった**。
+   `filepath.Join`はコンパイル先OS（この場合Windows）のセパレータを使う
+   ため、テストがgoos引数に"linux"を渡していても実際には`\`区切りになり
+   期待値と不一致になった。→ unix分岐も`filepath.Join`をやめ文字列結合に
+   統一した。
+2. **macOS: `TestListenAndDestTable_roundTrip`等3件が`bind: invalid
+   argument`で失敗** — `t.TempDir()`が返すパスが、macOSでは`$TMPDIR`
+   （`/var/folders/.../T/...`）由来で長く、AF_UNIXの`sun_path`上限
+   （macOSは~104バイトとLinuxよりさらに短い）を超えていた。手元Linuxでは
+   `/tmp`が短いため再現せず、`ubuntu-latest`でも再現しなかった。
+   → `sandbox/listener_test.go`に`newTestRuntimeDir`ヘルパーを追加し、
+   `/tmp`直下に短い名前で一時ディレクトリを作るようにした
+   （Windowsはこの経路（XDG_RUNTIME_DIR）を仕様上使わないため、この
+   ヘルパーを使うテストはWindowsでは`t.Skip`する）。
+
+修正後、ローカルで`make check`・`make race`・`make test`すべて再度
+green化を確認済み。**この修正はまだpushしていない。**
+
+Step 5自体（E2Eスクリプト・CI設定）の実装内容は以下の通り。
 
 - `testdata/modules/sender_once.wat` — 固定メッセージを宛先1へ1回送って
   終了するだけの送信専用モジュール（testing.mdの「一定回数送ったら終了する」
