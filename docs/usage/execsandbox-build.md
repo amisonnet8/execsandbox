@@ -159,13 +159,14 @@ license, including a proprietary one.
 
 ## About Code Signing
 
-The generated executable is unsigned. macOS and Windows may show a warning
-on first launch (Gatekeeper, SmartScreen).
+The generated executable ships unsigned, which isn't unusual for a
+cross-platform CLI tool. macOS and Windows may show a warning on first
+launch (Gatekeeper, SmartScreen).
 
-This is because appending to the end of the file breaks any existing
-signature (a signature is verified against a hash of the whole file). If
-you need a signature for distribution, re-sign it yourself after
-generation.
+That said, appending to the end of the file breaks any existing signature
+(a signature is verified against a hash of the whole file), so signing
+before stamping wouldn't help anyway. If you need a signature for
+distribution, re-sign it yourself after generation.
 
 ## Startup Option Errors and Exit Codes
 

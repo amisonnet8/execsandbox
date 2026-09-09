@@ -14,7 +14,7 @@
 **現象**: `-a/--allow`で`random`を許可しない（既定）状態でTinyGo
 （`wasip1`ターゲット）で書いたゲストを実行すると、`crypto/rand.Read`は
 失敗せず、**実行するたびに同じ固定値**を返す（`docs/examples/
-policy-and-limits.md`・`docs/tour/14-denying-random-and-time.md`で実測、
+policy-and-limits.md`・`docs/tour/14-allowing-random-and-time.md`で実測、
 値は`117`）。エラーとしては一切観測できない。
 
 **原因**: ExecSandboxのホスト側実装（`sandbox/policy.go`）は、`random`が
