@@ -33,6 +33,8 @@ sha256sum -c execsandbox-build_*.sha256
 
 ## ドキュメント
 
+- [インタラクティブガイド（Gemini Notebook）](https://notebook.google.com/notebook/70022dee-dbf2-4365-af70-ad98b28a613f) —
+  AI生成のインタラクティブな解説
 - [`docs/tour/README_ja.md`](docs/tour/README_ja.md) — 初めての人向けの
   入門ガイド。上から順に読む
 - [`docs/usage/execsandbox_ja.md`](docs/usage/execsandbox_ja.md) — 生成された

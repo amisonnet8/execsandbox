@@ -36,6 +36,8 @@ sha256sum -c execsandbox-build_*.sha256
 
 ## Documentation
 
+- [Interactive guide (Gemini Notebook)](https://notebook.google.com/notebook/70022dee-dbf2-4365-af70-ad98b28a613f) —
+  an AI-generated interactive walkthrough
 - [`docs/tour/README.md`](docs/tour/README.md) — an introductory guide for
   first-time users. Read top to bottom
 - [`docs/usage/execsandbox.md`](docs/usage/execsandbox.md) — the list of
