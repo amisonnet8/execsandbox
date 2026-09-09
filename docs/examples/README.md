@@ -10,7 +10,7 @@ rationale behind design decisions, see [`docs/spec/`](../spec/).
 | [`hello-wasi.md`](hello-wasi.md) | A minimal setup with no SDK | `-s`, `-e`, `--` |
 | [`sandbox-messaging.md`](sandbox-messaging.md) | Sandbox-to-sandbox messaging | `-n`, `-d` |
 | [`external-connection.md`](external-connection.md) | Echoing back an external connection | `-l` |
-| [`policy-and-limits.md`](policy-and-limits.md) | File access, memory limit, timeout, denying randomness/time | `-v`, `-m`, `-t`, `-x` |
+| [`policy-and-limits.md`](policy-and-limits.md) | File access, memory limit, timeout, allowing randomness/time | `-v`, `-m`, `-t`, `-a` |
 | [`polyglot-messaging.md`](polyglot-messaging.md) | Connecting a TinyGo guest and a Rust guest | `-n`, `-d` |
 
 The guest source for `hello-wasi.md` and `policy-and-limits.md` lives in

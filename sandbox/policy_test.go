@@ -309,14 +309,32 @@ func callClockProbe(t *testing.T, ctx context.Context, mod api.Module, id uint32
 	return int32(res[0]), ns
 }
 
-// -x未指定（既定）では乱数が本物のcrypto/rand相当であること（毎回異なる
-// バイト列）を固定する。wazeroの既定は決定的な乱数であり、これを
-// 見落とすと「-x random」を指定しなくても常に同じバイト列が返る
-// （PLAN.md「wazeroの既定が仕様と逆転する箇所」）。
-func TestPolicy_random_defaultIsNotDeterministic(t *testing.T) {
+// -a未指定（既定）では乱数の取得を拒否する(EIO)。wazeroの決定的乱数をそのまま
+// 「拒否」として使うと、拒否のつもりが予測可能な乱数の許可にすり替わって
+// しまう。
+func TestPolicy_random_defaultDeniesWithError(t *testing.T) {
 	ctx, rt, wasmBytes := newWASIRuntime(t)
 
 	p := Policy{}
+	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig().WithStartFunctions())
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	errno, _ := callRandomProbe(t, ctx, mod, 16)
+	if errno == 0 {
+		t.Error("random_probe() errno = 0, want a nonzero errno (random must be denied by default)")
+	}
+}
+
+// -a randomでは乱数が本物のcrypto/rand相当であること（毎回異なるバイト列）
+// を固定する。wazeroの既定は決定的な乱数であり、これを見落とすと
+// 「-a random」を指定しても常に同じバイト列が返る
+// （PLAN.md「wazeroの既定が仕様と逆転する箇所」）。
+func TestPolicy_random_allowIsNotDeterministic(t *testing.T) {
+	ctx, rt, wasmBytes := newWASIRuntime(t)
+
+	p := Policy{Allow: Allow{Random: true}}
 	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig().WithStartFunctions())
 	if err != nil {
 		t.Fatalf("instantiate: %v", err)
@@ -336,54 +354,14 @@ func TestPolicy_random_defaultIsNotDeterministic(t *testing.T) {
 	}
 }
 
-// -x randomは常にエラー(EIO)にする。wazeroの決定的乱数をそのまま「遮断」
-// として使うと、遮断のつもりが予測可能な乱数の許可にすり替わってしまう。
-func TestPolicy_random_denyReturnsError(t *testing.T) {
-	ctx, rt, wasmBytes := newWASIRuntime(t)
-
-	p := Policy{Deny: Deny{Random: true}}
-	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig().WithStartFunctions())
-	if err != nil {
-		t.Fatalf("instantiate: %v", err)
-	}
-
-	errno, _ := callRandomProbe(t, ctx, mod, 16)
-	if errno == 0 {
-		t.Error("random_probe() errno = 0, want a nonzero errno (-x random must block random_get)")
-	}
-}
-
-// -x未指定（既定）では実時刻(clock_time_get realtime)がtime.Now()と近い
-// 値になること（wazeroの既定は偽の単調時計であり、何もしなければ仕様
-// (§8.2 既定許可)と逆転する）。
-func TestPolicy_clock_defaultIsRealWalltime(t *testing.T) {
+// -a未指定（既定）ではWASIのclock_time_getにエラー経路がないため、「取得を
+// 拒否」を表現できない。代わりにwazeroの既定（偽の単調時計、
+// 2022-01-01T00:00:00Z付近から始まり読むたびに1msずつ進むだけ）のままに
+// することで、少なくとも実時刻を見せないという実効的な拒否を確認する。
+func TestPolicy_clock_defaultKeepsTheFakeClock(t *testing.T) {
 	ctx, rt, wasmBytes := newWASIRuntime(t)
 
 	p := Policy{}
-	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig().WithStartFunctions())
-	if err != nil {
-		t.Fatalf("instantiate: %v", err)
-	}
-
-	errno, ns := callClockProbe(t, ctx, mod, 0)
-	if errno != 0 {
-		t.Fatalf("clock_probe(realtime) errno = %d, want 0", errno)
-	}
-
-	got := time.Unix(0, int64(ns))
-	if diff := time.Since(got); diff < -5*time.Second || diff > 5*time.Second {
-		t.Errorf("clock_probe(realtime) = %v, want within 5s of now (%v)", got, time.Now())
-	}
-}
-
-// -x timeはWASIのclock_time_getにエラー経路がないため、「取得を遮断」を
-// 表現できない。代わりにwazeroの既定（偽の単調時計、2022-01-01T00:00:00Z付近から始まり
-// 読むたびに1msずつ進むだけ）のままにすることで、少なくとも実時刻を
-// 見せないという実効的な効果を確認する。
-func TestPolicy_clock_denyKeepsTheFakeClock(t *testing.T) {
-	ctx, rt, wasmBytes := newWASIRuntime(t)
-
-	p := Policy{Deny: Deny{Time: true}}
 	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig().WithStartFunctions())
 	if err != nil {
 		t.Fatalf("instantiate: %v", err)
@@ -397,6 +375,29 @@ func TestPolicy_clock_denyKeepsTheFakeClock(t *testing.T) {
 	got := time.Unix(0, int64(ns))
 	if diff := time.Since(got); diff < time.Hour {
 		t.Errorf("clock_probe(realtime) = %v, want far in the past (wazero's fake walltime, not the real time %v)", got, time.Now())
+	}
+}
+
+// -a timeでは実時刻(clock_time_get realtime)がtime.Now()と近い値になること
+// （wazeroの既定は偽の単調時計であり、何もしなければ許可しても嘘の時刻の
+// ままになる）。
+func TestPolicy_clock_allowIsRealWalltime(t *testing.T) {
+	ctx, rt, wasmBytes := newWASIRuntime(t)
+
+	p := Policy{Allow: Allow{Time: true}}
+	mod, err := rt.InstantiateWithConfig(ctx, wasmBytes, p.ModuleConfig().WithStartFunctions())
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+
+	errno, ns := callClockProbe(t, ctx, mod, 0)
+	if errno != 0 {
+		t.Fatalf("clock_probe(realtime) errno = %d, want 0", errno)
+	}
+
+	got := time.Unix(0, int64(ns))
+	if diff := time.Since(got); diff < -5*time.Second || diff > 5*time.Second {
+		t.Errorf("clock_probe(realtime) = %v, want within 5s of now (%v)", got, time.Now())
 	}
 }
 

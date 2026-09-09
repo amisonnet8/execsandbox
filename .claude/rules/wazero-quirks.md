@@ -11,29 +11,34 @@ ExecSandboxの中核である `wazero`（Pure-Go WASMランタイム）は、公
 v1.12.0）。将来のバージョンアップで挙動が変わった場合はこのファイルを
 更新すること。
 
-## 乱数・時刻の既定は「サンドボックス寄り」——仕様書とは逆
+## 乱数・時刻の既定：時刻は`wazero`と一致するが、乱数は一致しない
 
-ExecSandbox仕様書§8.2は、乱数と時刻を**既定で許可**としている（他のポリシーが
-軒並み既定拒否なのとは対照的）。ところが`wazero`自身の既定はこの逆で、
-**「本物の乱数・時刻を渡さない」方がサンドボックス的に安全**という考え方に
-立っている。
+ExecSandbox仕様書§8.2は、全ポリシー項目を**既定拒否**とする
+（`-a, --allow`で明示的に許可しない限り利用できない。乱数・時刻もかつては
+既定許可の例外だったが、ケイパビリティ方式全体の一貫性のため既定拒否へ
+統一した）。`wazero`自身の既定も「本物の乱数・時刻を渡さない」方が
+サンドボックス的に安全という考え方に立っており、一見両者は同じ方向を
+向いているように見える。**しかし実際に「拒否」の実装として使えるのは
+時刻側だけであり、乱数側は明示的な作り込みが必要**という非対称が残る。
 
-| ホスト関数 | `wazero`の既定 | ExecSandboxが必要とする既定 |
-| :--- | :--- | :--- |
-| `ModuleConfig.WithRandSource` | 決定的な乱数（毎回同じバイト列） | 本物の乱数（`crypto/rand.Reader`） |
-| `ModuleConfig.WithSysWalltime` | 偽の壁時計（後述） | 実時刻 |
-| `ModuleConfig.WithSysNanotime` | 偽の単調時計（1回の呼び出しごとに1ms進むだけ） | 実際の単調時計 |
-| `ModuleConfig.WithSysNanosleep` | 即座に返る（実際には眠らない） | 実際にスリープする |
+| ホスト関数 | `wazero`の既定 | ExecSandboxの既定（`-a`未指定）が必要とする値 | `wazero`の既定をそのまま使えるか |
+| :--- | :--- | :--- | :--- |
+| `ModuleConfig.WithRandSource` | 決定的な乱数（毎回同じバイト列） | 常にエラー（`sys.EIO`） | **使えない**（後述） |
+| `ModuleConfig.WithSysWalltime` | 偽の壁時計（後述） | 偽の壁時計のまま | 使える。何もしなくてよい |
+| `ModuleConfig.WithSysNanotime` | 偽の単調時計（1回の呼び出しごとに1ms進むだけ） | 同上 | 使える |
+| `ModuleConfig.WithSysNanosleep` | 即座に返る（実際には眠らない） | 同上 | 使える |
 
-**何もしなければ、`-x`を一切指定しなくても仕様と正反対（乱数は予測可能、
-時刻は嘘）の状態が黙って成立する。** ExecSandboxでは`sandbox/policy.go`の
-`Policy.ModuleConfig()`で、`-x random`/`-x time`が指定されていない限り
-これらを明示的に呼ぶことで仕様の既定（許可）を成立させている。
+`-a random`／`-a time`が指定された（許可された）ときだけ、
+`sandbox/policy.go`の`Policy.ModuleConfig()`が上記4つを明示的に呼んで
+本物の乱数・実時刻へ切り替える。**既定（`-a`未指定）では時刻側は何も
+呼ばなくてよい**——`wazero`の素の既定（偽の壁時計）がそのまま仕様の
+「拒否」の実装として成立するため。乱数側は既定でも`alwaysErrorReader`
+（後述）を明示的に渡す必要がある。
 
 `WithSysNanotime`だけを有効化して`WithSysNanosleep`を呼び忘れると、
 sleepを`nanotime`のビジーループで実装している言語（Go等）のゲストで
 CPUを無駄に消費し続ける。**walltime/nanotime/nanosleepは必ず三点セットで
-扱うこと。**
+扱うこと（`-a time`で有効化する側）。**
 
 ### 偽の壁時計の具体的な値
 
@@ -43,27 +48,28 @@ CPUを無駄に消費し続ける。**walltime/nanotime/nanosleepは必ず三点
 なるはず」と誤って想定していたが、実際にソースを確認したところ2022年基準の
 一見もっともらしい大きな数値だった。**「小さい値かどうか」で判定するテストは
 書けない。** `time.Now()`との差分（`time.Since`）で判定すること
-（`sandbox/policy_test.go`の`TestPolicy_clock_denyKeepsTheFakeClock`参照）。
+（`sandbox/policy_test.go`の`TestPolicy_clock_defaultKeepsTheFakeClock`参照）。
 
 ### `clock_time_get` には「拒否」のエラー経路がない
 
 WASI（`wasi_snapshot_preview1`）の`clock_time_get`は、成功時は取得した
 タイムスタンプを、失敗時はエラー番号だけを返す設計であり、「時刻取得を
 拒否する」ための専用エラーコードが定義されていない。そのためExecSandboxの
-`-x time`は、`clock_time_get`自体をエラーにするのではなく、**`wazero`の
-既定（偽の壁時計）をそのまま見せ続ける**ことで実効的な「時刻を見せない」を
-実現している（`docs/usage/execsandbox.md`にも利用者向けに明記済み）。
+既定（`-a time`未指定）は、`clock_time_get`自体をエラーにするのではなく、
+**`wazero`の既定（偽の壁時計）をそのまま見せ続ける**ことで実効的な
+「時刻を見せない」を実現している（`docs/usage/execsandbox.md`にも
+利用者向けに明記済み）。
 
-同様に、乱数（`random_get`）にはエラー経路があるため、`-x random`は
-実際にエラー（`sys.EIO`）を返すことで遮断できる。**乱数と時刻で「拒否」の
-実現方法が非対称になる**のは、ExecSandbox側の設計不備ではなくWASI側の
-API設計に起因する。
+同様に、乱数（`random_get`）にはエラー経路があるため、既定（`-a random`
+未指定）は実際にエラー（`sys.EIO`）を返すことで拒否できる。**乱数と時刻で
+「拒否」の実現方法が非対称になる**のは、ExecSandbox側の設計不備ではなく
+WASI側のAPI設計に起因する。
 
-`-x random`の実装では、`wazero`の決定的乱数（`WithRandSource`未設定時の
-既定）をそのまま「遮断」の代わりに使わないこと。決定的でも「乱数が
-取れてしまう」ことに変わりはなく、遮断のつもりが予測可能な乱数の許可に
-すり替わる。常にエラーを返す`io.Reader`を明示的に渡すこと
-（`sandbox/policy.go`の`alwaysErrorReader`）。
+既定（`-a random`未指定）の実装では、`wazero`の決定的乱数
+（`WithRandSource`未設定時の既定）をそのまま「拒否」の代わりに使わない
+こと。決定的でも「乱数が取れてしまう」ことに変わりはなく、拒否のつもりが
+予測可能な乱数の許可にすり替わる。常にエラーを返す`io.Reader`を明示的に
+渡すこと（`sandbox/policy.go`の`alwaysErrorReader`）。
 
 ## `WithMemoryLimitPages` は既定超えでpanicする
 

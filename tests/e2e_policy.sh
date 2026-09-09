@@ -6,7 +6,7 @@
 # tests/e2e_basic.sh、-tの強制終了は tests/e2e_timeout.sh が担当）。
 set -euo pipefail
 
-# wasi_probe.wasmの"_start"は、-x/--denyの実機確認用にrandom_get/
+# wasi_probe.wasmの"_start"は、-a/--allowの実機確認用にrandom_get/
 # clock_time_getの生バイト(乱数・時刻)を無条件にstdoutの末尾へ書き出す
 # (testdata/modules/wasi_probe.wat)。macOSのtr/grep(BSD版)はロケールに
 # 応じて入力をUTF-8として妥当性検証するため、この非ASCIIな乱数バイト列に

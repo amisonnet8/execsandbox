@@ -141,16 +141,24 @@ func TestStdioSet(t *testing.T) {
 	}
 }
 
-func TestDenySet(t *testing.T) {
-	var d denySet
-	if err := d.Set("random,time"); err != nil {
+func TestAllowSet(t *testing.T) {
+	var a allowSet
+	if err := a.Set("random,time"); err != nil {
 		t.Fatalf("Set: %v", err)
 	}
-	if !d.Random || !d.Time {
-		t.Errorf("d = %+v, want both true", d)
+	if !a.Random || !a.Time {
+		t.Errorf("a = %+v, want both true", a)
 	}
 
-	var bad denySet
+	var viaAll allowSet
+	if err := viaAll.Set("all"); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+	if !viaAll.Random || !viaAll.Time {
+		t.Errorf("viaAll = %+v, want both true", viaAll)
+	}
+
+	var bad allowSet
 	if err := bad.Set("bogus"); err == nil {
 		t.Error("Set(bogus) = nil, want error")
 	}
@@ -246,14 +254,14 @@ func TestParseArgs_defaults(t *testing.T) {
 }
 
 func TestParseArgs_guestArgsAfterDoubleDash(t *testing.T) {
-	opts, err := parseArgs([]string{"-n", "core", "--", "--verbose", "-x", "3"})
+	opts, err := parseArgs([]string{"-n", "core", "--", "--verbose", "-a", "3"})
 	if err != nil {
 		t.Fatalf("parseArgs: %v", err)
 	}
 	if opts.name != "core" {
 		t.Errorf("name = %q, want %q", opts.name, "core")
 	}
-	want := []string{"--verbose", "-x", "3"}
+	want := []string{"--verbose", "-a", "3"}
 	if len(opts.guestArgs) != len(want) {
 		t.Fatalf("guestArgs = %#v, want %#v", opts.guestArgs, want)
 	}

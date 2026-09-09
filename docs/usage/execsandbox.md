@@ -35,8 +35,8 @@ Options:
                                   in,out,err,all (default: none, all blocked)
   -t, --timeout DURATION          execution time limit, e.g. 30s, 5m
                                   (default: none, unlimited)
-  -x, --deny LIST                 capabilities to deny: random,time
-                                  (default: none, both allowed)
+  -a, --allow LIST                capabilities to allow: random,time,all
+                                  (default: none, both denied)
   -q, --quiet                     suppress host-side logging
   -h, --help                      show this help message
   -V, --version                   print the version
@@ -62,7 +62,7 @@ Everything after "--" is passed to the WASM module as its arguments.
 | `-l` | `--listen` | address | Listen for external connections. At most one | none (does not listen) |
 | `-s` | `--stdio` | stream list | Streams to connect externally | none (all blocked) |
 | `-t` | `--timeout` | duration | Execution time limit | none (unlimited) |
-| `-x` | `--deny` | item list | Capabilities to deny | none (all allowed) |
+| `-a` | `--allow` | item list | Capabilities to allow | none (all denied) |
 | `-q` | `--quiet` | — | Suppress host-side logging | logs |
 | `-h` | `--help` | — | Help | — |
 | `-V` | `--version` | — | Version | — |
@@ -294,27 +294,29 @@ Windows drive letter (as in `C:\data:/data`, where `HOST` itself contains a
 nonexistent path is an error that prevents startup (the directory needs to
 already exist). `GUEST` must start with `/`.
 
-### `-x, --deny`
+### `-a, --allow`
 
-| Value | Blocked |
+| Value | Allowed |
 | :--- | :--- |
 | `random` | random number generation |
 | `time` | time retrieval |
+| `all` | all of the above |
 
 ```
--x random,time
+-a random,time
 ```
 
-Only randomness and time default to allowed (every other policy defaults to
-denied). Specify this when you want to explicitly deny them.
+Everything defaults to denied, including randomness and time (every other
+policy also defaults to denied). Specify this when you want to explicitly
+allow them.
 
-**On the effective meaning of `-x time`**: WASI (`clock_time_get`) defines
-no error path for "refuse to retrieve the time." So `-x time` is actually
-realized by showing the underlying runtime's (wazero's) default fake clock
-as-is — a value unrelated to real time, starting around
-2022-01-01T00:00:00Z on each launch and advancing by just one millisecond
-per call. A guest can only learn that time retrieval is being denied by
-noticing "the value isn't real," not by an error.
+**On the effective meaning of denying time (the default)**: WASI
+(`clock_time_get`) defines no error path for "refuse to retrieve the time."
+So denying it by default is actually realized by showing the underlying
+runtime's (wazero's) default fake clock as-is — a value unrelated to real
+time, starting around 2022-01-01T00:00:00Z on each launch and advancing by
+just one millisecond per call. A guest can only learn that time retrieval is
+being denied by noticing "the value isn't real," not by an error.
 
 ## Miscellaneous
 

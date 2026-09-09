@@ -28,6 +28,6 @@ written by the guest
 システム全体が見えるわけではない。
 
 ---
-[← 前: 12. メモリに上限をかける](12-capping-memory_ja.md) | [目次](README_ja.md) | [次: 14. 乱数・時刻を遮断する →](14-denying-random-and-time_ja.md)
+[← 前: 12. メモリに上限をかける](12-capping-memory_ja.md) | [目次](README_ja.md) | [次: 14. 乱数・時刻を許可する →](14-allowing-random-and-time_ja.md)
 
 English version: [13-exposing-files.md](13-exposing-files.md)

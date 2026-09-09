@@ -36,6 +36,6 @@ correctly `import`s the four functions
 `send`/`recv`/`conn_write`/`max_frame`.
 
 ---
-[← Previous: 14. Denying Randomness and Time](14-denying-random-and-time.md) | [Index](README.md) | [Next: 16. Where to Go Next →](16-where-to-go-next.md)
+[← Previous: 14. Allowing Randomness and Time](14-allowing-random-and-time.md) | [Index](README.md) | [Next: 16. Where to Go Next →](16-where-to-go-next.md)
 
 日本語版: [15-writing-in-another-language_ja.md](15-writing-in-another-language_ja.md)

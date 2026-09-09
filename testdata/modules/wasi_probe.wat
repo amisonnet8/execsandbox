@@ -22,10 +22,10 @@
 ;;   9020..9024  : write_probeのfd_write書き込みバイト数（結果、未使用）
 ;;   9100..9109  : データセグメント"probe.txt"（_startが書き込むパス）
 ;;   9120..9142  : データセグメント"written-by-wasi_probe"（_startが書き込む内容）
-;;   9200..9216  : _startがrandom_getで埋める16バイト（-x random時は0のまま）
+;;   9200..9216  : _startがrandom_getで埋める16バイト（既定＝拒否時は0のまま）
 ;;   9240..9248  : 同iovec、9250..9254: fd_write書き込みバイト数（未使用）
 ;;   9260..9268  : _startがclock_time_get(realtime)で埋める8バイト
-;;                 （-x time時はwazeroの偽時計＝2022-01-01T00:00:00Z付近の値のまま）
+;;                 （既定＝拒否時はwazeroの偽時計＝2022-01-01T00:00:00Z付近の値のまま）
 ;;   9270..9278  : 同iovec、9280..9284: fd_write書き込みバイト数（未使用）
 ;;
 ;; _start: argv_bufと改行とenviron_bufと改行を、1回のfd_write（iovec 4本）で
@@ -40,7 +40,7 @@
 ;; パスへ指定バイト列を書き込む。マウントなし・読み取り専用の場合は
 ;; path_open/fd_writeがエラー(0以外)を返すことでも確認できる。
 ;;
-;; random_probe/clock_probe: -x/--denyの検証用（フェーズ②Step6）。
+;; random_probe/clock_probe: -a/--allowの検証用（フェーズ②Step6）。
 ;; random_get/clock_time_getを直接呼び、errnoと結果をそのまま返す・
 ;; 書き込む。値の解釈（毎回異なるか、現在時刻に近いか）はGoテスト側で行う。
 (module
@@ -134,12 +134,13 @@
     ;; （実機での-v確認用。結果は無視してよい）。
     (drop (call $write_probe (i32.const 9100) (i32.const 9) (i32.const 9120) (i32.const 22)))
 
-    ;; -x/--denyの実機確認用（フェーズ②Step6）。random_get 16バイトと
+    ;; -a/--allowの実機確認用（フェーズ②Step6）。random_get 16バイトと
     ;; clock_time_get(realtime) 8バイトをそのままstdoutへ書く（-s outが
-    ;; 無指定なら既定でio.Discardへ消える）。-x randomなら9200..9216は
-    ;; メモリの初期値0のまま、既定なら本物の乱数で埋まる。-x timeなら
-    ;; 9260..9268はwazeroの偽時計（2022-01-01T00:00:00Z付近の値）のまま、
-    ;; 既定ならtime.Now()相当の値になる。
+    ;; 無指定なら既定でio.Discardへ消える）。既定（-a random未指定）なら
+    ;; 9200..9216はメモリの初期値0のまま、-a randomなら本物の乱数で埋まる。
+    ;; 既定（-a time未指定）なら9260..9268はwazeroの偽時計
+    ;; （2022-01-01T00:00:00Z付近の値）のまま、-a timeならtime.Now()相当の
+    ;; 値になる。
     (drop (call $random_get (i32.const 9200) (i32.const 16)))
     (i32.store (i32.const 9240) (i32.const 9200))
     (i32.store (i32.const 9244) (i32.const 16))

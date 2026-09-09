@@ -132,7 +132,7 @@ func run(opts *options) (exitCode int, err error) {
 		Stdio:            sandbox.Stdio(opts.stdio),
 		Args:             opts.guestArgs,
 		Mounts:           toSandboxMounts(opts.volumes),
-		Deny:             sandbox.Deny(opts.deny),
+		Allow:            sandbox.Allow(opts.allow),
 		MemoryLimitBytes: opts.memLimit,
 		Timeout:          opts.timeout,
 		Stdin:            os.Stdin,

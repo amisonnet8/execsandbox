@@ -31,7 +31,7 @@ case, see [`docs/examples/`](../examples/).
 11. [Stopping a Runaway Guest](11-stopping-a-runaway-guest.md)
 12. [Capping Memory](12-capping-memory.md)
 13. [Exposing Files](13-exposing-files.md)
-14. [Denying Randomness and Time](14-denying-random-and-time.md)
+14. [Allowing Randomness and Time](14-allowing-random-and-time.md)
 
 ## E. Wrapping Up
 

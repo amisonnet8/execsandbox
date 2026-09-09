@@ -1,11 +1,11 @@
 # policy-and-limits — リソース制限とケイパビリティ
 
-`-v`（ファイルマウント）・`-m`（メモリ上限）・`-t`（タイムアウト）・`-x`
-（乱数/時刻の遮断）を、それぞれ最小のTinyGoゲストで実演する。SDKは使わない
+`-v`（ファイルマウント）・`-m`（メモリ上限）・`-t`（タイムアウト）・`-a`
+（乱数/時刻の許可）を、それぞれ最小のTinyGoゲストで実演する。SDKは使わない
 （ExecSandbox本体のポリシー機能だけを見せるため）。
 
 ソース: [`src/policy-and-limits/`](src/policy-and-limits/)（`file-access/`・
-`mem-limit/`・`timeout/`・`deny/`の4つの独立したゲスト）
+`mem-limit/`・`timeout/`・`allow/`の4つの独立したゲスト）
 
 ## `-v, --volume` — ファイルアクセス
 
@@ -78,59 +78,59 @@ real	0m1.010s
 終了コードは`124`（Unixの`timeout(1)`コマンドと同じ慣習）。`-q`を付けると
 このログは抑制されるが、終了コードは変わらない。
 
-## `-x, --deny` — 乱数・時刻の遮断
+## `-a, --allow` — 乱数・時刻の許可
 
-[`deny/main.go`](src/policy-and-limits/deny/main.go)は`crypto/rand`で
+[`allow/main.go`](src/policy-and-limits/allow/main.go)は`crypto/rand`で
 1バイト、`time.Now()`で現在時刻を取得して表示する。
 
 ```
-$ tinygo build -target=wasip1 -o deny.wasm .
-$ execsandbox-build -o deny deny.wasm
+$ tinygo build -target=wasip1 -o allow.wasm .
+$ execsandbox-build -o allow allow.wasm
 ```
 
-既定（`-x`なし）では、乱数は実行のたびに変わり、時刻は実際の現在時刻に
-一致する。
+既定（`-a`なし）では、**乱数は実行するたびに同じ`117`という値になり**
+（真の乱数ではなくなるという意味では拒否されているが、エラーにはならない）、
+**時刻は`docs/usage/execsandbox_ja.md`が説明する通り2022-01-01T00:00:00Zの
+偽時計に固定される**。
 
 ```
-$ ./deny -s out
-random byte: 158
-clock: 2026-09-08T16:02:50Z
-$ ./deny -s out
-random byte: 87
-clock: 2026-09-08T16:02:50Z
-```
-
-`-x random,time`を指定すると、**時刻は`docs/usage/execsandbox_ja.md`が説明する
-通り2022-01-01T00:00:00Zの偽時計に固定される**が、**乱数は実行するたびに
-同じ`117`という値になる**（真の乱数ではなくなるという意味では遮断されて
-いるが、エラーにはならない）。
-
-```
-$ ./deny -x random,time -s out
+$ ./allow -s out
 random byte: 117
 clock: 2022-01-01T00:00:00Z
-$ ./deny -x random,time -s out
+$ ./allow -s out
 random byte: 117
 clock: 2022-01-01T00:00:00Z
 ```
 
-### なぜ乱数は「エラー」ではなく固定値になるのか
+`-a random,time`を指定すると、乱数は実行のたびに変わり、時刻は実際の現在
+時刻に一致する。
 
-仕様書§5.6・`.claude/rules/wazero-quirks.md`の設計では、`-x random`は
-`random_get`の呼び出し自体を常にエラーで遮断する。ところが**TinyGoの
-`crypto/rand`（`wasip1`ターゲット）は、WASIの`random_get`を直接呼ぶのでは
-なく、`arc4random_buf`というlibc関数を経由する**。この関数はCの慣習として
-戻り値を持たず、失敗を呼び出し元へ伝える手段がない。結果として、内部で
-`random_get`がエラーになっても、`arc4random_buf`はそれを握りつぶし
-（TinyGoのwasi-libcの実装依存で、未初期化のバッファをそのまま返すため
-毎回同じ値になっていると見られる)、ゲスト側からは「常に同じ値が返る」と
-いう形で観測される。
+```
+$ ./allow -a random,time -s out
+random byte: 174
+clock: 2026-09-09T00:44:49Z
+$ ./allow -a random,time -s out
+random byte: 128
+clock: 2026-09-09T00:44:49Z
+```
+
+### なぜ拒否時の乱数は「エラー」ではなく固定値になるのか
+
+仕様書§5.6・`.claude/rules/wazero-quirks.md`の設計では、乱数の拒否（既定、
+`-a random`未指定）は`random_get`の呼び出し自体を常にエラーで拒否する。
+ところが**TinyGoの`crypto/rand`（`wasip1`ターゲット）は、WASIの
+`random_get`を直接呼ぶのではなく、`arc4random_buf`というlibc関数を経由
+する**。この関数はCの慣習として戻り値を持たず、失敗を呼び出し元へ伝える
+手段がない。結果として、内部で`random_get`がエラーになっても、
+`arc4random_buf`はそれを握りつぶし（TinyGoのwasi-libcの実装依存で、
+未初期化のバッファをそのまま返すため毎回同じ値になっていると見られる)、
+ゲスト側からは「常に同じ値が返る」という形で観測される。
 
 **これはExecSandbox本体のバグではなく、ゲスト言語のlibc実装に起因する
-挙動である。** `-x random`はホスト側のABI境界（`random_get`）では確実に
-遮断できているが、その先でゲストのランタイムがエラーをどう扱うかは
-ゲスト側の実装次第、という点を示す実例になっている。Rust版SDKや生のABIを
-直接叩くゲストでは異なる挙動になりうる。
+挙動である。** 乱数の拒否はホスト側のABI境界（`random_get`）では確実に
+できているが、その先でゲストのランタイムがエラーをどう扱うかはゲスト側の
+実装次第、という点を示す実例になっている。Rust版SDKや生のABIを直接叩く
+ゲストでは異なる挙動になりうる。
 
 ---
 

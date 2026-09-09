@@ -1,10 +1,10 @@
-// deny demonstrates -x/--deny: it prints one random byte and the current
+// allow demonstrates -a/--allow: it prints one random byte and the current
 // time as seen by the guest. Compare the output with and without
-// -x random,time to see the effect.
+// -a random,time to see the effect.
 //
 // Build with TinyGo for the wasip1 target:
 //
-//	tinygo build -target=wasip1 -o deny.wasm .
+//	tinygo build -target=wasip1 -o allow.wasm .
 package main
 
 import (

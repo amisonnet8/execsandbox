@@ -9,19 +9,21 @@
 `docs/examples/`・`docs/tour/`でSDKを使った実例を書く際、実際にビルド・実行
 して初めて気づく類の発見が多い。新しく気づいたらここに追記すること。
 
-## TinyGoの`crypto/rand`は`-x random`のエラーを握りつぶす
+## TinyGoの`crypto/rand`は乱数拒否時のエラーを握りつぶす
 
-**現象**: `-x random`を指定してTinyGo（`wasip1`ターゲット）で書いたゲストを
-実行すると、`crypto/rand.Read`は失敗せず、**実行するたびに同じ固定値**を
-返す（`docs/examples/policy-and-limits.md`・`docs/tour/14-denying-random-
-and-time.md`で実測、値は`117`）。エラーとしては一切観測できない。
+**現象**: `-a/--allow`で`random`を許可しない（既定）状態でTinyGo
+（`wasip1`ターゲット）で書いたゲストを実行すると、`crypto/rand.Read`は
+失敗せず、**実行するたびに同じ固定値**を返す（`docs/examples/
+policy-and-limits.md`・`docs/tour/14-denying-random-and-time.md`で実測、
+値は`117`）。エラーとしては一切観測できない。
 
-**原因**: ExecSandboxのホスト側実装（`sandbox/policy.go`）は、`-x random`
-指定時に`random_get`の呼び出しを常にエラー（`sys.EIO`）で遮断する。これは
-`sandbox/policy_test.go`の`TestPolicy_deny_random`が生のABI
-（`testdata/modules/wasi_probe.wasm`の`random_probe`、SDKを介さずWASIの
-`random_get`を直接呼ぶ）に対して正しく機能することを確認済みであり、
-**ホストのABI境界では確実に遮断できている。**
+**原因**: ExecSandboxのホスト側実装（`sandbox/policy.go`）は、`random`が
+未許可（既定）のとき`random_get`の呼び出しを常にエラー（`sys.EIO`）で
+拒否する。これは`sandbox/policy_test.go`の
+`TestPolicy_random_defaultDeniesWithError`が生のABI（`testdata/modules/
+wasi_probe.wasm`の`random_probe`、SDKを介さずWASIの`random_get`を直接
+呼ぶ）に対して正しく機能することを確認済みであり、**ホストのABI境界では
+確実に拒否できている。**
 
 ところがTinyGoの`crypto/rand`（`wasip1`ターゲット、`src/crypto/rand/
 rand_arc4random.go`）は、`random_get`を直接呼ばず、**戻り値を持たない
@@ -30,8 +32,8 @@ libc関数`arc4random_buf(void*, size_t)`を経由する**。Cの関数シグネ
 `arc4random_buf`はそれを呼び出し元へ伝播できない。
 
 **教訓**: **ホストのABI境界を正しく実装しても、その先でゲスト言語の標準
-ライブラリ・libcが何をするかは言語ごとに異なる。** `-x`のような「遮断」
-系のポリシーを検証・説明するときは、
+ライブラリ・libcが何をするかは言語ごとに異なる。** `-a/--allow`のような
+ケイパビリティ系のポリシーを検証・説明するときは、
 
 1. **まず生のABIを直接叩く検証用モジュール**（`testdata/modules/`、
    `.claude/rules/testing.md`）でホスト側の実装が正しいことを確認し、

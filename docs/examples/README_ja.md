@@ -9,7 +9,7 @@ ExecSandboxで何ができるかを、動くコードと実際のコマンド出
 | [`hello-wasi_ja.md`](hello-wasi_ja.md) | SDK不使用の最小構成 | `-s`, `-e`, `--` |
 | [`sandbox-messaging_ja.md`](sandbox-messaging_ja.md) | サンドボックス間メッセージング | `-n`, `-d` |
 | [`external-connection_ja.md`](external-connection_ja.md) | 外部接続のエコーバック | `-l` |
-| [`policy-and-limits_ja.md`](policy-and-limits_ja.md) | ファイルアクセス・メモリ上限・タイムアウト・乱数/時刻の遮断 | `-v`, `-m`, `-t`, `-x` |
+| [`policy-and-limits_ja.md`](policy-and-limits_ja.md) | ファイルアクセス・メモリ上限・タイムアウト・乱数/時刻の許可 | `-v`, `-m`, `-t`, `-a` |
 | [`polyglot-messaging_ja.md`](polyglot-messaging_ja.md) | TinyGoとRustのゲストを相互接続 | `-n`, `-d` |
 
 `hello-wasi_ja.md`・`policy-and-limits_ja.md`のゲストソースは[`src/`](src/)に

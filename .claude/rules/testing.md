@@ -168,7 +168,7 @@ ExecDBがCI上でのみ顕在化した問題を踏んでいる。手元Linuxで�
   妥当性検証し、非ASCIIなバイト列に遭遇すると`Illegal byte sequence`で
   落ちる。** GNU版（Linux）はこの検証をしない、またはより寛容であり、
   手元Linuxでは再現しない。`tests/e2e_policy.sh`が`wasi_probe.wasm`の
-  stdout（`-x/--deny`確認用に`random_get`の生の乱数バイトを含む）を
+  stdout（`-a/--allow`確認用に`random_get`の生の乱数バイトを含む）を
   `tr '\0' '\n'`へパイプする箇所で`macos-latest`のみ失敗した
   （フェーズ③Step5のCIで発覚）。**ゲストの出力が非ASCIIバイトを含みうる
   場合、パイプする前段のスクリプトで`export LC_ALL=C`しておくこと。**

@@ -341,6 +341,57 @@ Step 8完了時に通す。コミットは各Step完了時に行う。pushは行
 
 ## 現在地
 
+**`-x, --deny`を`-a, --allow`へ反転した（2026-09-09）。**
+
+ユーザー提案により、乱数・時刻（旧`-x, --deny`、既定許可の唯一の例外）を
+他のポリシー項目と同じ既定拒否のホワイトリスト方式に統一し、明示的に許可する
+`-a, --allow`（既定拒否、許可対象を列挙。`all`ショートハンド追加）へ置き換えた。
+仕様書§7.1・§7.6・§8を先に確定させてから実装した（`.claude/rules/
+abi-compatibility.md`の「SDK側の実装が先行してはならない」と同じ考え方を、
+仕様書とコードの関係にも適用）。
+
+- **仕様書**（英日）: オプション表・§7.6見出しと値・§8のポリシー表を更新。
+  乱数・時刻を例外とする既定許可の記述を削除し、全項目共通の既定拒否に統一。
+  反転の判断理由（ケイパビリティ方式全体の一貫性を優先）を追記。
+- **コード**: `sandbox/policy.go`の`Deny`→`Allow`（ブール反転、既定は両方
+  false=拒否）。`cmd/execsandbox/options.go`の`denySet`→`allowSet`
+  （`all`値を追加）、フラグを`-x/--deny`→`-a/--allow`へ。**時刻側は`-a
+  time`未指定時に何も呼ばなくてよくなった**——wazeroの素の既定（偽の壁時計）が
+  そのまま仕様の「拒否」の実装として成立するため（`.claude/rules/
+  wazero-quirks.md`が指摘していた既定逆転の一部が解消）。乱数側は既定でも
+  引き続き`alwaysErrorReader`を明示的に渡す必要がある（wazeroの決定的乱数を
+  そのまま「拒否」に流用できないため、変わらず）。
+- **テスト**: `sandbox/policy_test.go`の4テストを新設計に合わせて反転
+  （`TestPolicy_random_defaultDeniesWithError`/
+  `TestPolicy_random_allowIsNotDeterministic`/
+  `TestPolicy_clock_defaultKeepsTheFakeClock`/
+  `TestPolicy_clock_allowIsRealWalltime`）。`cmd/execsandbox/options_test.go`の
+  `TestDenySet`→`TestAllowSet`（`all`のテストケース追加）。
+- **ルールファイル**: `.claude/rules/naming.md`・`wazero-quirks.md`・
+  `guest-quirks.md`・`testing.md`の`-x/--deny`への言及を更新。
+  `wazero-quirks.md`は節タイトルと内容を「時刻はwazeroの既定と一致するが
+  乱数は一致しない」という新しい構図に書き直した。
+- **ドキュメント**（英日）: `docs/usage/`のヘルプ出力・オプション表・詳細節を
+  実測し直し。`docs/examples/policy-and-limits.md`は`deny/`ゲストを`allow/`へ
+  リネーム（`git mv`）し、実測値を取り直した（既定=拒否で乱数は固定値117・
+  時刻は偽時計、`-a random,time`で本物の乱数・実時刻になることを確認）。
+  `docs/tour/14-denying-random-and-time.md`は`14-allowing-random-and-time.md`
+  （`_ja`同様）へリネームし、章の導入・実測値を書き直した。前後の章
+  （13章・15章・目次README）の相互リンク・タイトル表記も追随させた。
+  リンク切れがないことをスクリプトで確認済み。
+- **実際の動作確認**: `go build`/`go vet`/`gofmt -l`/`go test`/`make check`/
+  `make race`/`make test`（5本のE2Eすべて）green。TinyGo
+  （`docs/examples/src/policy-and-limits/allow/`）を実際にビルドし、既定と
+  `-a random,time`の両方で`docs/examples/`・`docs/tour/`に埋め込んだ実測値を
+  再取得した。
+
+英語版仕様書（`docs/spec/execsandbox_spec.md`）は日本語版と同じ3箇所を
+同期させた。`docs/spec/`以外の英日ペアはすべて実測値ベースで更新済み。
+
+---
+
+以下は`docs/`英日併記化時点の記録。
+
 **利用者向けドキュメントを英日併記化した（2026-09-08）。**
 
 ユーザー指示により、`README.md`・`docs/spec/`・`docs/usage/`・

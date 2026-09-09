@@ -32,8 +32,8 @@ Options:
                                   in,out,err,all (default: none, all blocked)
   -t, --timeout DURATION          execution time limit, e.g. 30s, 5m
                                   (default: none, unlimited)
-  -x, --deny LIST                 capabilities to deny: random,time
-                                  (default: none, both allowed)
+  -a, --allow LIST                capabilities to allow: random,time,all
+                                  (default: none, both denied)
   -q, --quiet                     suppress host-side logging
   -h, --help                      show this help message
   -V, --version                   print the version
@@ -59,7 +59,7 @@ Everything after "--" is passed to the WASM module as its arguments.
 | `-l` | `--listen` | アドレス | 外部接続の待ち受け。1つのみ | なし（待ち受けない） |
 | `-s` | `--stdio` | ストリーム列挙 | 外部に接続するストリーム | なし（すべて遮断） |
 | `-t` | `--timeout` | 期間 | 実行時間制限 | なし（無期限） |
-| `-x` | `--deny` | 項目列挙 | 機能の遮断 | なし（すべて許可） |
+| `-a` | `--allow` | 項目列挙 | 機能の許可 | なし（すべて拒否） |
 | `-q` | `--quiet` | — | ホスト側ログの抑制 | 出力する |
 | `-h` | `--help` | — | ヘルプ | — |
 | `-V` | `--version` | — | バージョン | — |
@@ -276,26 +276,28 @@ WASMモジュール側は番号のみを指定して送信する（`Send(1, data
 起動しない（ディレクトリを事前に作っておく必要がある）。`GUEST` は必ず
 `/` で始まる必要がある。
 
-### `-x, --deny`
+### `-a, --allow`
 
-| 値 | 遮断対象 |
+| 値 | 許可対象 |
 | :--- | :--- |
 | `random` | 乱数生成 |
 | `time` | 時刻取得 |
+| `all` | 上記すべて |
 
 ```
--x random,time
+-a random,time
 ```
 
-乱数と時刻のみ、既定で許可されている（他のポリシーは既定で禁止）。明示的に
-禁止したい場合に指定する。
+乱数と時刻を含め、すべての項目が既定で拒否されている（他のポリシーと同じ）。
+明示的に許可したい場合に指定する。
 
-**`-x time`の実効的な意味について**: WASI（`clock_time_get`）には「時刻取得を
-拒否する」ためのエラー経路が定義されていない。そのため`-x time`は、実際には
-実行系（wazero）の既定である偽の時計（起動のたびに2022-01-01T00:00:00Z
-付近から1回の呼び出しごとに1ミリ秒ずつ進むだけの、実時刻と無関係な値）を
-そのまま見せる、という形で実現している。ゲストは「エラーになる」のではなく
-「本物ではない値が返る」ことでしか時刻取得の禁止を知ることができない。
+**既定（時刻の拒否）の実効的な意味について**: WASI（`clock_time_get`）には
+「時刻取得を拒否する」ためのエラー経路が定義されていない。そのため既定の
+拒否は、実際には実行系（wazero）の既定である偽の時計（起動のたびに
+2022-01-01T00:00:00Z付近から1回の呼び出しごとに1ミリ秒ずつ進むだけの、
+実時刻と無関係な値）をそのまま見せる、という形で実現している。ゲストは
+「エラーになる」のではなく「本物ではない値が返る」ことでしか時刻取得の
+拒否を知ることができない。
 
 ## その他
 

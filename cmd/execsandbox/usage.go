@@ -27,8 +27,8 @@ Options:
                                   in,out,err,all (default: none, all blocked)
   -t, --timeout DURATION          execution time limit, e.g. 30s, 5m
                                   (default: none, unlimited)
-  -x, --deny LIST                 capabilities to deny: random,time
-                                  (default: none, both allowed)
+  -a, --allow LIST                capabilities to allow: random,time,all
+                                  (default: none, both denied)
   -q, --quiet                     suppress host-side logging
   -h, --help                      show this help message
   -V, --version                   print the version

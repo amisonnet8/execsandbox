@@ -41,7 +41,7 @@ type stdioSet struct {
 	In, Out, Err bool
 }
 
-type denySet struct {
+type allowSet struct {
 	Random, Time bool
 }
 
@@ -56,7 +56,7 @@ type options struct {
 	maxFrame     int64
 	stdio        stdioSet
 	timeout      time.Duration // 0はタイムアウトなし(既定)
-	deny         denySet
+	allow        allowSet
 	listen       string // 空文字列は待ち受けなし(既定)
 	quiet        bool
 	help         bool
@@ -114,8 +114,8 @@ func parseArgs(args []string) (*options, error) {
 	fs.Var((*durationValue)(&opts.timeout), "t", "execution time limit (e.g. 30s, 5m)")
 	fs.Var((*durationValue)(&opts.timeout), "timeout", "execution time limit (e.g. 30s, 5m)")
 
-	fs.Var(&opts.deny, "x", "capabilities to deny: random,time")
-	fs.Var(&opts.deny, "deny", "capabilities to deny: random,time")
+	fs.Var(&opts.allow, "a", "capabilities to allow: random,time,all")
+	fs.Var(&opts.allow, "allow", "capabilities to allow: random,time,all")
 
 	fs.BoolVar(&opts.quiet, "q", false, "suppress host-side logging")
 	fs.BoolVar(&opts.quiet, "quiet", false, "suppress host-side logging")
@@ -338,19 +338,21 @@ func (s *stdioSet) Set(value string) error {
 	return nil
 }
 
-// --- -x, --deny: カンマ区切り(random,time) ---
+// --- -a, --allow: カンマ区切り(random,time,all) ---
 
-func (d *denySet) String() string { return "" }
+func (a *allowSet) String() string { return "" }
 
-func (d *denySet) Set(value string) error {
+func (a *allowSet) Set(value string) error {
 	for _, v := range strings.Split(value, ",") {
 		switch v {
 		case "random":
-			d.Random = true
+			a.Random = true
 		case "time":
-			d.Time = true
+			a.Time = true
+		case "all":
+			a.Random, a.Time = true, true
 		default:
-			return fmt.Errorf("invalid -x/--deny value %q, want a comma-separated list of random,time", v)
+			return fmt.Errorf("invalid -a/--allow value %q, want a comma-separated list of random,time,all", v)
 		}
 	}
 	return nil

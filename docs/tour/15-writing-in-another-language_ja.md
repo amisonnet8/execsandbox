@@ -33,6 +33,6 @@ TinyGo（GCあり）とRust（GCなし）という対照的なメモリモデル
 できるはずである。
 
 ---
-[← 前: 14. 乱数・時刻を遮断する](14-denying-random-and-time_ja.md) | [目次](README_ja.md) | [次: 16. 次に読むもの →](16-where-to-go-next_ja.md)
+[← 前: 14. 乱数・時刻を許可する](14-allowing-random-and-time_ja.md) | [目次](README_ja.md) | [次: 16. 次に読むもの →](16-where-to-go-next_ja.md)
 
 English version: [15-writing-in-another-language.md](15-writing-in-another-language.md)

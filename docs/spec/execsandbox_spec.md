@@ -860,7 +860,7 @@ For the detailed syntax and examples of each option, see
 | `-l` | `--listen` | address | Listen for external connections. At most one | none (does not listen) |
 | `-s` | `--stdio` | stream list | Streams to connect externally | none (all blocked) |
 | `-t` | `--timeout` | duration | Execution time limit | none (unlimited) |
-| `-x` | `--deny` | item list | Capabilities to deny | none (all allowed) |
+| `-a` | `--allow` | item list | Capabilities to allow | none (all denied) |
 | `-q` | `--quiet` | — | Suppress host-side logging | logs |
 | `-h` | `--help` | — | Help | — |
 | `-V` | `--version` | — | Version | — |
@@ -879,7 +879,7 @@ paired it with `-V` in uppercase instead — both share the property of being
 judged that grouping `-V`/`-L` together in uppercase, among the three
 informational options, reads better as a set than having `-L` alone sit
 lowercase next to `-h`/`-V`. Everything else picks from unused lowercase
-letters (this is why `-x` was assigned to `--deny`).
+letters (this is why `-a` was assigned to `--allow`).
 
 ### 7.2 `--`
 
@@ -946,14 +946,27 @@ redirection, and accepting a file path as a value would require reintroducing
 a "`-` means stdio" notation, sending us right back into the discussion in
 7.2.
 
-### 7.6 `-x, --deny`
+### 7.6 `-a, --allow`
 
-| Value | Blocked |
+| Value | Allowed |
 |---|---|
 | `random` | random number generation |
 | `time` | time retrieval |
+| `all` | all of the above |
 
-Multiple values are comma-separated.
+Multiple values are comma-separated. `all` was added for symmetry with
+`-s, --stdio`, so the all-at-once notation keeps working even if the list of
+items grows later.
+
+Any item not listed (the default) is denied. This unifies randomness and
+time with the same allowlist approach used by the other policy items
+(filesystem, stdio, etc.), reversing the earlier `-x, --deny` design (list
+the items to block, defaulting to allowed) that treated randomness and time
+as an exception. That earlier judgment wasn't wrong on its own — it defaulted
+randomness and time to allowed because the risk of leaking sensitive host
+information through them is low — but we chose to prioritize consistency
+across the whole capability model (the guest can do nothing unless explicitly
+wired, per `.claude/rules/cli-output.md`) over keeping that one exception.
 
 ### 7.7 Host-Side Logging
 
@@ -992,14 +1005,12 @@ unspecified takes its default value.
 | Environment variables / arguments | `WithEnv` / `WithArgs` | none |
 | Memory limit | `WithMemoryLimitPages` | `512M` |
 | Execution time | `context.WithTimeout` | unlimited |
-| Randomness / time | `WithRandSource` / `WithWalltime` / `WithNanotime` | allowed |
+| Randomness / time | `WithRandSource` / `WithWalltime` / `WithNanotime` | denied |
 | Sandbox-to-sandbox communication | custom | no destination assigned |
 | External connections | custom | not listening |
 
-Except for randomness and time, nothing is usable unless explicitly
-specified (an allowlist approach). Randomness and time alone default to
-allowed, because the risk of leaking sensitive host information through
-them is low.
+Nothing is usable unless explicitly specified (an allowlist approach).
+Randomness and time are allowed individually via `-a, --allow` (7.6).
 
 The execution time limit defaults to disabled, since the baseline execution
 model is a resident sandbox designed for indefinite uptime — for example, a

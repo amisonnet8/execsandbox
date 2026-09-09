@@ -30,7 +30,7 @@ Go](https://go.dev/tour/)のように、1章=1つの小さな概念）。オプ�
 11. [暴走を止める](11-stopping-a-runaway-guest_ja.md)
 12. [メモリに上限をかける](12-capping-memory_ja.md)
 13. [ファイルを見せる](13-exposing-files_ja.md)
-14. [乱数・時刻を遮断する](14-denying-random-and-time_ja.md)
+14. [乱数・時刻を許可する](14-allowing-random-and-time_ja.md)
 
 ## E. おわりに
 
