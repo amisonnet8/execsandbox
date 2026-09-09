@@ -826,18 +826,18 @@ re-releasing the builder to add a target, we start out generous.
 
 ### 6.4 Code Signing
 
-The generated executable is left unsigned. macOS and Windows may show a
-warning on first launch.
+The generated executable ships unsigned. Shipping without a code signature
+isn't unusual for a cross-platform CLI tool — signing is chiefly a step
+that matters for GUI applications and commercial software distribution. The
+predecessor project ExecDB has shipped and operated unsigned executables for
+six platforms without signing ever becoming an issue there, and ExecSandbox
+follows the same path. macOS and Windows may show a warning on first launch.
 
-Stamping (appending to the end of the binary) breaks any existing code
-signature. Since a signature is verified against a hash of the whole file,
-an append is indistinguishable from tampering.
-
-The predecessor project ExecDB has shipped and operated unsigned executables
-for six platforms without signing ever becoming an issue there, so we
-aligned with the same premise here. Should it become necessary, the point
-at which to re-sign after stamping is a single, well-defined spot, so this
-can be addressed later.
+That said, stamping (appending to the end of the binary) breaks any existing
+code signature. Since a signature is verified against a hash of the whole
+file, an append is indistinguishable from tampering. Should it become
+necessary down the line, the point at which to re-sign after stamping is a
+single, well-defined spot, so this can be addressed later.
 
 ---
 
