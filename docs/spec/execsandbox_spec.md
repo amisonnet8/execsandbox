@@ -163,6 +163,13 @@ bypasses the network stack is the most straightforward fit. On top of that,
 **socket file permissions provide OS-level access control**, which meshes
 well with the capability-based design philosophy (3.3).
 
+**We don't encrypt the communication (e.g. TLS).** AF_UNIX completes as a
+memory copy inside the kernel and never goes out as a packet on a network
+interface, so the on-path eavesdropping/tampering threat model that TLS
+addresses simply doesn't exist here. Access control comes not from
+encryption but from the socket file and parent directory permissions
+described above (3.2).
+
 Windows natively supports AF_UNIX from Windows 10 (1803) onward, and Go's
 `net.Listen("unix", path)` works as-is. The following were rejected:
 
